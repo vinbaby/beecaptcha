@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Docs — BeeCaptcha</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="docs-body">
+<header><a class="brand" href="index.html">BeeCaptcha</a><nav><a href="index.html#features">Features</a><a href="pricing.html">Pricing</a><a href="docs.html" class="active">Docs</a><a href="login.html" class="ghost">Sign in</a></nav></header>
+<main class="docs-wrap">
+<section class="docs-hero"><span class="eyebrow">BEE CAPTCHA · DEVELOPER DOCS</span><h1>Protect a website in three steps.</h1><p class="lead">Use a public site key in the browser and keep the secret key on your server.</p></section>
+<div class="docs-grid">
+<article class="workspace-card"><div class="integration-step"><b>1</b><span>Load the widget</span></div><pre class="detail-code">&lt;script src="https://zjghuovefnbuliovttqa.supabase.co/functions/v1/widget?site_key=YOUR_SITE_KEY"&gt;&lt;/script&gt;
+&lt;vin-captcha data-vin-captcha="YOUR_SITE_KEY"&gt;&lt;/vin-captcha&gt;</pre><p class="desc">The site key is designed to be public. Never put the secret key into frontend JavaScript.</p></article>
+<article class="workspace-card"><div class="integration-step"><b>2</b><span>Read the verification event</span></div><pre class="detail-code">document.addEventListener("vin-captcha-verified", (event) =&gt; {
+  const token = event.detail.token;
+  // Send token to your backend.
+});</pre><p class="desc">The event contains a short-lived verification token for your server to verify.</p></article>
+<article class="workspace-card"><div class="integration-step"><b>3</b><span>Verify on your backend</span></div><pre class="detail-code">POST /functions/v1/captcha-verify
+Content-Type: application/json
+
+{
+  "site_key": "YOUR_SITE_KEY",
+  "secret_key": "YOUR_SECRET_KEY",
+  "verification_token": "TOKEN_FROM_WIDGET"
+}</pre><p class="desc">Only your backend should send the secret key. A successful response returns <code>success: true</code>.</p></article>
+</div>
+<section class="workspace-card docs-note"><b>Supported CAPTCHA types</b><p class="desc">The dashboard currently supports Visual Select, Image Select and Math Challenge. Additional types can be registered through the CAPTCHA type catalog without changing the verification contract.</p><div class="hero-actions"><a class="cta" href="login.html">Create a website</a><a class="secondary" href="health.html">Run system checks</a></div></section>
+</main>
+<footer>© 2026 BeeCaptcha · <a href="pricing.html">Pricing</a> · <a href="health.html">System status</a></footer>
+</body></html>

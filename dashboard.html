@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="vi"><head>
+<!-- BeeCaptcha v8 --><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — BeeCaptcha</title><link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="bee-core.js"></script></head>
+<body class="app-body">
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="brand" href="index.html">BeeCaptcha</a>
+  <nav class="side-nav">
+    <a class="active" href="dashboard.html"><span>⌂</span>Dashboard</a>
+    <a href="#sites"><span>◉</span>Websites</a>
+    <a href="analytics.html"><span>▥</span>Analytics</a>
+    <a href="pricing.html"><span>◇</span>Billing</a>
+    <a href="settings.html"><span>⚙</span>Settings</a>
+  </nav>
+  <div class="side-bottom"><b>Free Plan</b><small>Grow your protection with more sites and higher limits.</small><a class="cta" href="pricing.html">Upgrade</a></div>
+</aside>
+<div class="app-content">
+<header class="app-topbar"><label class="search" for="globalSearch">⌕ &nbsp; <input id="globalSearch" type="search" autocomplete="off" placeholder="Search websites, sites or features..." aria-label="Search websites"></label><div class="profile"><span>◔</span><span class="avatar">B</span><div><b id="userEmail">Account</b><small>BeeCaptcha</small></div><button id="logout" class="ghost">Sign out</button></div></header>
+<main class="app-main">
+<section class="dashboard-hero">
+  <div class="hero-copy">
+    <span class="eyebrow">BEE CAPTCHA</span>
+    <h1>Secure your website<br><em>with BeeCaptcha</em></h1>
+    <p>Modern, user-friendly CAPTCHA protection to stop bots, protect your website and keep your users safe.</p>
+    <div class="hero-actions"><a id="newSite" class="cta" href="create.html">+ Create Website</a><a class="ghost hero-link" href="integration.html">View Documentation</a></div>
+    <div class="hero-chips"><span class="hero-chip">✓ Easy integration</span><span class="hero-chip">◈ Multiple CAPTCHA types</span><span class="hero-chip">▥ Real-time analytics</span></div>
+  </div>
+  <div class="hero-art" aria-hidden="true"><div class="hex h1"></div><div class="hex h2"></div><div class="bee-mark">🐝</div><div class="shield-mark">✓</div></div>
+</section>
+<section class="dashboard-stats">
+  <div class="stat-card"><div class="stat-icon sites-icon">◎</div><small>Total Websites</small><b id="statSites">—</b><span id="statSitesMeta">Protected sites</span></div>
+  <div class="stat-card"><div class="stat-icon verify-icon">✓</div><small>Total Verifications</small><b id="statVerifications">—</b><span id="statVerificationsMeta">Last 30 days</span></div>
+  <div class="stat-card"><div class="stat-icon blocked-icon">⊘</div><small>Blocked Bots</small><b id="statBlocked">—</b><span id="statBlockedMeta">Failed challenges</span></div>
+  <div class="stat-card"><div class="stat-icon plan-icon">✦</div><small>Current Plan</small><b id="statPlan">—</b><span id="statPlanMeta">Active subscription</span></div>
+</section>
+<div id="alert"></div>
+<section id="billing" class="billing-card premium-billing">Loading plan…</section>
+<section class="section-head"><div><h2>Your Websites</h2><p>Manage protection, keys and CAPTCHA settings from one place.</p><span id="siteSearchState"></span></div><button class="ghost" id="refreshSites">↻ Refresh</button></section>
+<section id="sites" class="sites dashboard-sites"></section>
+<section class="dashboard-grid">
+  <div class="panel analytics-preview"><div class="panel-head"><div><h3>Usage overview</h3><p>Verification activity across your websites.</p></div><button class="ghost" id="overviewAnalytics">View analytics</button></div><div id="overviewChart" class="mini-chart"><div class="chart-empty">Loading activity…</div></div><div class="chart-legend"><span><i class="legend-success"></i> Successful</span><span><i class="legend-failed"></i> Failed</span></div></div>
+  <div class="panel activity-panel"><div class="panel-head"><div><h3>Recent activity</h3><p>Latest account events.</p></div></div><div id="recentActivity" class="activity-list"><div class="chart-empty">Loading activity…</div></div></div>
+</section>
+<section class="quick-section"><div class="section-head"><div><h2>Quick actions</h2><p>Everything you need to keep BeeCaptcha running smoothly.</p></div></div><section class="quick-grid"><a class="quick-card" href="create.html"><div class="quick-icon">＋</div><strong>Create Website</strong><small>Add a website and get your site key.</small><span>→</span></a><a class="quick-card" href="#analytics" id="quickAnalytics"><div class="quick-icon">▥</div><strong>View Analytics</strong><small>Track verification traffic and performance.</small><span>→</span></a><a class="quick-card" href="pricing.html"><div class="quick-icon">◇</div><strong>Manage Billing</strong><small>View your plan and payment history.</small><span>→</span></a><a class="quick-card" href="integration.html"><div class="quick-icon">⌘</div><strong>Integration Guide</strong><small>Get code examples and setup steps.</small><span>→</span></a></section></section>
+<section class="pro-banner"><div><span class="eyebrow">BEE CAPTCHA</span><h2>Stop bots. Protect your users.</h2><p>Flexible challenges, simple integration and privacy-safe analytics built for modern websites.</p></div><a class="cta" href="pricing.html">Explore plans</a></section>
+</main></div></div>
+
+<dialog id="modal"><form method="dialog" id="siteForm">
+<h2>Add website</h2><p class="muted">The secret key is shown once. Store it securely on your backend.</p>
+<label>Website name<input id="name" required maxlength="120" placeholder="My website"></label>
+<label>Allowed domains<input id="domain" required placeholder="example.com"></label>
+<div class="captcha-picker"><div class="picker-label">Choose CAPTCHA type</div><p class="muted">Select the protection style your website will use. You can change it later.</p><div id="captchaOptions" class="captcha-options"></div><input type="hidden" id="captchaType" value="visual_select_v1"></div>
+<div class="actions"><button value="cancel" class="ghost">Cancel</button><button id="create" value="default">Create site</button></div>
+</form></dialog>
+
+<dialog id="settingsModal"><form method="dialog" id="settingsForm">
+<h2>Site settings</h2><input type="hidden" id="settingsId">
+<label>Website name<input id="settingsName" required maxlength="120"></label>
+<label>Allowed domains <span class="muted">(one per line)</span><textarea id="settingsDomains" rows="5" required></textarea></label>
+<div class="captcha-picker"><div class="picker-label">CAPTCHA type</div><div id="settingsCaptchaOptions" class="captcha-options compact"></div><input type="hidden" id="settingsCaptchaType" value="visual_select_v1"></div>
+<label>Status<select id="settingsStatus"><option value="active">Active</option><option value="disabled">Disabled</option></select></label>
+<div class="actions"><button value="cancel" class="ghost">Cancel</button><button value="default">Save changes</button></div>
+</form></dialog>
+
+<dialog id="analyticsModal" class="analytics-dialog"><form method="dialog">
+<div class="analytics-modal-head"><div><span class="eyebrow">BEE ANALYTICS</span><h2 id="analyticsTitle">Usage & analytics</h2><p id="analyticsSubtitle" class="muted">Verification performance for the last 30 days.</p></div><div class="analytics-head-actions"><button id="exportAnalytics" type="button" class="ghost">↓ Export CSV</button><button value="cancel" class="dialog-close" aria-label="Close">×</button></div></div>
+<div id="analytics"></div>
+</form></dialog>
+
+<dialog id="secretModal"><form method="dialog">
+<h2>New secret key</h2><p class="muted">This secret is displayed once. Copy it now and keep it on your server only.</p>
+<code id="newSecret" class="secret"></code>
+<div class="actions"><button id="copySecret" type="button">Copy secret</button><button value="default">Done</button></div>
+</form></dialog>
+
+<dialog id="detailModal" class="detail-dialog"><form method="dialog"><button class="dialog-close" value="cancel">×</button><div id="detailContent"></div></form></dialog>
+
+<script>
+const {db,$,$$,esc,fmt,relative,requireUser,wireLogout,copy,notice,openSite,openIntegration,featureRoute} = Bee;
+let user, sites = [], captchaTypes = [], billing = null;
+const icons={visual_select_v1:"◈",image_select_v1:"▦",math_v1:"∑",text_v1:"Aa",slider_v1:"↔",drag_drop_v1:"✦",rotate_v1:"↻"};
+function captchaTypeName(code){return captchaTypes.find(x=>x.code===code)?.name||code||"Visual Select";}
+function renderCaptchaOptions(containerSelector,inputSelector,selected){
+ const el=$(containerSelector); if(!el)return;
+ el.innerHTML=captchaTypes.map(t=>`<button type="button" class="captcha-option ${t.code===selected?"selected":""}" data-captcha-option="${esc(t.code)}"><span class="captcha-icon">${icons[t.code]||"◇"}</span><span><b>${esc(t.name)}</b><small>${esc(t.description)}</small></span><span class="captcha-check">✓</span></button>`).join("");
+ $$("[data-captcha-option]",el).forEach(b=>b.onclick=()=>{const code=b.dataset.captchaOption;$(inputSelector).value=code;$$("[data-captcha-option]",el).forEach(x=>x.classList.toggle("selected",x.dataset.captchaOption===code));});
+}
+async function loadCatalog(){
+ const {data,error}=await db.from("captcha_types").select("code,name,description,active,sort_order").eq("active",true).order("sort_order");
+ if(error){notice(error.message);return false;} captchaTypes=data||[];
+ renderCaptchaOptions("#captchaOptions","#captchaType","visual_select_v1");
+ renderCaptchaOptions("#settingsCaptchaOptions","#settingsCaptchaType","visual_select_v1"); return true;
+}
+async function loadBilling(){
+ const {data}=await db.rpc("vin_get_billing_summary"); billing=data||{plan:"free",status:"active"};
+ const planName=(billing.plan||"free").toUpperCase();
+ $("#statPlan").textContent=planName; $("#billing").innerHTML=`<div><span class="billing-label">Current plan</span><b>${esc(planName)}</b><span>${esc(billing.status||"active")} · subscription active</span></div><a class="cta small-cta" href="pricing.html">${billing.plan&&billing.plan!=="free"?"Manage plan":"Upgrade"}</a>`;
+}
+async function loadOverviewAnalytics(){
+ const since=new Date(Date.now()-29*86400000).toISOString();
+ if(!sites.length){$("#statVerifications").textContent="0";$("#statBlocked").textContent="0";$("#overviewChart").innerHTML='<div class="chart-empty">No verification data yet.</div>';$("#recentActivity").innerHTML='<div class="chart-empty">No activity yet.</div>';return;}
+ const ids=sites.map(s=>s.id); const {data,error}=await db.from("vin_site_verification_events").select("site_id,created_at,success").in("site_id",ids).gte("created_at",since).order("created_at",{ascending:false}).limit(5000);
+ if(error){$("#statVerifications").textContent="—";$("#statBlocked").textContent="—";$("#overviewChart").innerHTML='<div class="chart-empty">Analytics unavailable.</div>';return;}
+ const rows=data||[], success=rows.filter(x=>x.success).length, failed=rows.length-success; $("#statVerifications").textContent=fmt(rows.length); $("#statBlocked").textContent=fmt(failed);
+ const byDay={}; for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*86400000).toISOString().slice(0,10);byDay[d]={ok:0,bad:0};}
+ rows.forEach(x=>{const d=new Date(x.created_at).toISOString().slice(0,10);if(byDay[d])x.success?byDay[d].ok++:byDay[d].bad++;});
+ const points=Object.entries(byDay).map(([d,v])=>({d,...v})); const max=Math.max(1,...points.map(x=>x.ok+x.bad));
+ $("#overviewChart").innerHTML=`<div class="bars">${points.map(x=>`<div class="bar-day" title="${x.d}: ${x.ok+x.bad} verifications"><div class="bar-stack"><i class="bar-ok" style="height:${x.ok?Math.max(2,x.ok/max*100):0}%"></i><i class="bar-bad" style="height:${x.bad?Math.max(2,x.bad/max*100):0}%"></i></div></div>`).join("")}</div><div class="chart-axis"><span>${points[0]?.d.slice(5)||""}</span><span>${points[Math.floor(points.length/2)]?.d.slice(5)||""}</span><span>${points.at(-1)?.d.slice(5)||""}</span></div>`;
+ const recent=rows.slice(0,6); $("#recentActivity").innerHTML=recent.length?recent.map(x=>{const site=sites.find(s=>s.id===x.site_id);return `<div class="activity-item"><span class="activity-dot ${x.success?'success':'failed'}">${x.success?'✓':'!'}</span><div><b>${x.success?'Verification passed':'Verification blocked'}</b><small>${esc(site?.name||'Website')}</small></div><time>${relative(x.created_at)}</time></div>`}).join(""):'<div class="chart-empty">No activity yet.</div>';
+}
+async function loadSites(){
+ const {data,error}=await db.from("sites").select("id,name,site_key,allowed_domains,status,plan,captcha_type,created_at").order("created_at",{ascending:false});
+ if(error){notice(error.message);return;} sites=data||[]; $("#statSites").textContent=fmt(sites.length); $("#statSitesMeta").textContent=sites.length===1?"1 protected site":"Protected sites";
+ const el=$("#sites"); if(!sites.length){el.innerHTML=`<div class="empty empty-modern"><div class="empty-icon">🐝</div><h3>No websites yet</h3><p>Create your first protected website and choose a CAPTCHA type.</p><a class="cta" href="create.html">Create Website</a></div>`;await loadOverviewAnalytics();return;}
+ el.innerHTML=sites.map(s=>`<article class="site site-card-modern" data-site-search="${esc([s.name,(s.allowed_domains||[]).join(' '),s.site_key,captchaTypeName(s.captcha_type),s.plan].join(' '))}"><div class="site-main"><div class="site-avatar">${esc((s.name||"W").slice(0,1).toUpperCase())}</div><div class="site-title"><div class="site-title-row"><h2>${esc(s.name)}</h2><span class="pill ${esc(s.status)}">${esc(s.status)}</span></div><p>${esc((s.allowed_domains||[])[0]||"No domain configured")}</p></div></div><div class="site-meta"><span class="captcha-badge">${esc(captchaTypeName(s.captcha_type))}</span><span class="site-plan">${esc((s.plan||"free").toUpperCase())}</span></div><div class="site-key-preview"><small>Site key</small><code>${esc(s.site_key)}</code><button class="ghost copy" data-copy="${esc(s.site_key)}">Copy</button></div><div class="site-actions"><button class="ghost" data-action="detail" data-id="${s.id}">Open website</button><button class="ghost" data-action="integration" data-id="${s.id}">Integration</button><button class="ghost" data-action="analytics" data-id="${s.id}">Analytics</button><button class="ghost" data-action="settings" data-id="${s.id}">Settings</button><button class="icon-button" aria-label="Rotate secret" title="Rotate secret" data-action="rotate" data-id="${s.id}">↻</button></div></article>`).join("");
+ $$(".copy").forEach(b=>b.onclick=async()=>{if(await copy(b.dataset.copy))notice("Site key copied to clipboard.","ok");});
+ $$("[data-action=integration]").forEach(b=>b.onclick=()=>openIntegration(b.dataset.id));
+ $$("[data-action=settings]").forEach(b=>b.onclick=()=>openSettings(b.dataset.id));
+ $$("[data-action=analytics]").forEach(b=>b.onclick=()=>location.href="website.html?id="+encodeURIComponent(b.dataset.id)+"#analytics");
+ $$("[data-action=detail]").forEach(b=>b.onclick=()=>openSite(b.dataset.id));
+ $$("[data-action=rotate]").forEach(b=>b.onclick=()=>rotateSecret(b.dataset.id));
+ await loadOverviewAnalytics(); filterSites();
+}
+function filterSites(){const q=("#globalSearch"&&$("#globalSearch")?.value||"").trim().toLowerCase();let matches=0;$$("#sites .site-card-modern").forEach(card=>{const hit=!q||card.dataset.siteSearch.toLowerCase().includes(q);card.hidden=!hit;if(hit)matches++;});$("#siteSearchState").textContent=q&&matches===0?"No matching websites":"";}
+function openSettings(id){const s=sites.find(x=>x.id===id);if(!s)return;$("#settingsId").value=s.id;$("#settingsName").value=s.name;$("#settingsDomains").value=(s.allowed_domains||[]).join("\n");$("#settingsStatus").value=s.status;renderCaptchaOptions("#settingsCaptchaOptions","#settingsCaptchaType",s.captcha_type||"visual_select_v1");$("#settingsModal").showModal();}
+async function saveSettings(){const s=sites.find(x=>x.id==$("#settingsId").value);if(!s)return;const btn=$("#settingsForm button[type=submit]");Bee.setBusy(btn,true,"Saving…");const payload={name:$("#settingsName").value.trim(),allowed_domains:Bee.domains($("#settingsDomains").value),status:$("#settingsStatus").value,captcha_type:$("#settingsCaptchaType").value};const {error}=await db.from("sites").update(payload).eq("id",s.id).eq("owner_id",user.id);Bee.setBusy(btn,false);if(error){notice(error.message);return;}Object.assign(s,payload);$("#settingsModal").close();notice("Website settings updated.","ok");loadSites();}
+async function rotateSecret(id){const s=sites.find(x=>x.id===id);if(!s||!confirm(`Rotate the secret for ${s.name}? The old secret stops working immediately.`))return;const {data:{session}}=await db.auth.getSession();if(!session){location.href="login.html";return;}const r=await fetch(Bee.SUPABASE_URL+"/functions/v1/site-rotate-secret",{method:"POST",headers:{Authorization:"Bearer "+session.access_token,"content-type":"application/json"},body:JSON.stringify({site_id:id})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.success){notice(d.error||"Could not rotate secret.");return;}$("#newSecret").textContent=d.secret_key;$("#secretModal").showModal();}
+async function init(){user=await requireUser();if(!user)return;wireLogout();$("#globalSearch")?.addEventListener("input",filterSites);$("#refreshSites")?.addEventListener("click",()=>loadSites());$("#quickAnalytics")?.addEventListener("click",e=>{e.preventDefault();location.href="analytics.html"});$("#overviewAnalytics")?.addEventListener("click",()=>location.href="analytics.html");$("#settingsForm")?.addEventListener("submit",e=>{e.preventDefault();saveSettings();});$("#copySecret")?.addEventListener("click",async()=>{if(await copy($("#newSecret").textContent)){notice("Secret copied.","ok");}});await loadCatalog();await loadBilling();await loadSites();$("#globalSearch")?.focus();}
+init();
+</script>
+</body></html>
