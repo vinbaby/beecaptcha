@@ -1,6 +1,44 @@
 <!doctype html><html lang="vi"><head>
-<!-- BeeCaptcha v8 --><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in — BeeCaptcha</title><link rel="stylesheet" href="styles.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="bee-core.js"></script></head><body><main class="auth"><a class="brand" href="index.html">BeeCaptcha</a><div class="box"><h1>Sign in</h1><p>We'll email you a secure magic link.</p><input id="email" type="email" placeholder="you@company.com"><button id="go" class="cta">Send login link</button><div id="msg"></div></div></main><script>
-const {db,$,setBusy}=Bee;const next=new URLSearchParams(location.search).get("next");const safeNext=(next&&/^[a-z0-9_./#?=&-]+$/i.test(next))?next:"dashboard.html";
-(async()=>{const {data}=await db.auth.getUser();if(data?.user){location.href=safeNext;}})();
-$("#go").onclick=async()=>{const email=$("#email").value.trim(),btn=$("#go"),msg=$("#msg");if(!email){msg.textContent="Enter your email address.";return;}setBusy(btn,true,"Sending…");const r=await db.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+"/"+safeNext.replace(/^\//,"")}});setBusy(btn,false);msg.textContent=r.error?r.error.message:"Check your email for the login link."};
+<!-- BeeCaptcha auth login -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in — BeeCaptcha</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="bee-core.js"></script>
+</head>
+<body><main class="auth">
+<a class="brand" href="index.html">BeeCaptcha</a>
+<div class="box">
+<h1>Sign in</h1>
+<p>We'll email you a secure magic link.</p>
+<input id="email" type="email" placeholder="you@company.com" autocomplete="email">
+<button id="go" class="cta" type="button">Send login link</button>
+<div id="msg"></div>
+</div>
+</main>
+<script>
+const {db,$,setBusy}=Bee;
+const APP_ORIGIN="https://beecaptcha.vercel.app";
+const next=new URLSearchParams(location.search).get("next");
+const safeNext=(next&&/^[a-z0-9_./#?=&-]+$/i.test(next))?next:"dashboard.html";
+
+(async()=>{
+  const {data}=await db.auth.getSession();
+  if(data?.session){
+    location.href=APP_ORIGIN+"/"+safeNext.replace(/^\//,"");
+  }
+})();
+
+$("#go").onclick=async()=>{
+  const email=$("#email").value.trim(),btn=$("#go"),msg=$("#msg");
+  if(!email){msg.textContent="Enter your email address.";return;}
+  setBusy(btn,true,"Sending…");
+  const redirectTo=APP_ORIGIN+"/auth-callback.html?next="+encodeURIComponent(safeNext);
+  const r=await db.auth.signInWithOtp({
+    email,
+    options:{emailRedirectTo:redirectTo}
+  });
+  setBusy(btn,false);
+  msg.textContent=r.error?r.error.message:"Check your email for the login link.";
+};
 </script></body></html>
