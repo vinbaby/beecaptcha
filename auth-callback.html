@@ -8,7 +8,7 @@
 <body><main class="auth">
 <a class="brand" href="index.html">BeeCaptcha</a>
 <div class="box">
-<h1>Signing you in…</h1>
+<h1 id="title">Signing you in…</h1>
 <p id="msg">Securely completing your sign-in.</p>
 </div>
 </main>
@@ -20,18 +20,30 @@ const safeNext=(rawNext&&/^[a-z0-9_./#?=&-]+$/i.test(rawNext))?rawNext:"dashboar
 const APP_ORIGIN="https://beecaptcha.vercel.app";
 
 (async()=>{
-  const {data,error}=await db.auth.getSession();
-  if(error){
-    document.getElementById("msg").textContent="Sign-in failed: "+error.message;
-    return;
+  try{
+    const code=params.get("code");
+    if(code){
+      const {error}=await db.auth.exchangeCodeForSession(code);
+      if(error) throw error;
+    }
+
+    const {data,error}=await db.auth.getSession();
+    if(error) throw error;
+
+    if(data?.session){
+      location.replace(APP_ORIGIN+"/"+safeNext.replace(/^\//,""));
+      return;
+    }
+
+    const hashParams=new URLSearchParams(location.hash.slice(1));
+    const errDesc=hashParams.get("error_description");
+    document.getElementById("title").textContent="Sign-in link unavailable";
+    document.getElementById("msg").textContent=
+      errDesc ? decodeURIComponent(errDesc) :
+      "The sign-in link may be expired or already used. Please request a new one.";
+  }catch(error){
+    document.getElementById("title").textContent="Sign-in failed";
+    document.getElementById("msg").textContent=error?.message || "Unable to complete sign-in.";
   }
-  if(data?.session){
-    location.replace(APP_ORIGIN+"/"+safeNext.replace(/^\//,""));
-    return;
-  }
-  const msg=location.hash.includes("error_description")
-    ?decodeURIComponent(new URLSearchParams(location.hash.slice(1)).get("error_description")||"Sign-in failed.")
-    :"The sign-in link may be expired. Please request a new one.";
-  document.getElementById("msg").textContent=msg;
 })();
 </script></body></html>
