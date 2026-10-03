@@ -1,0 +1,37 @@
+<!doctype html><html lang="vi"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signing in — BeeCaptcha</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="bee-core.js"></script>
+</head>
+<body><main class="auth">
+<a class="brand" href="index.html">BeeCaptcha</a>
+<div class="box">
+<h1>Signing you in…</h1>
+<p id="msg">Securely completing your sign-in.</p>
+</div>
+</main>
+<script>
+const {db}=Bee;
+const params=new URLSearchParams(location.search);
+const rawNext=params.get("next");
+const safeNext=(rawNext&&/^[a-z0-9_./#?=&-]+$/i.test(rawNext))?rawNext:"dashboard.html";
+const APP_ORIGIN="https://beecaptcha.vercel.app";
+
+(async()=>{
+  const {data,error}=await db.auth.getSession();
+  if(error){
+    document.getElementById("msg").textContent="Sign-in failed: "+error.message;
+    return;
+  }
+  if(data?.session){
+    location.replace(APP_ORIGIN+"/"+safeNext.replace(/^\//,""));
+    return;
+  }
+  const msg=location.hash.includes("error_description")
+    ?decodeURIComponent(new URLSearchParams(location.hash.slice(1)).get("error_description")||"Sign-in failed.")
+    :"The sign-in link may be expired. Please request a new one.";
+  document.getElementById("msg").textContent=msg;
+})();
+</script></body></html>
