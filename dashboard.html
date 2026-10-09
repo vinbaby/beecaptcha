@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="vi"><head>
 <!-- BeeCaptcha v8 --><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dashboard — BeeCaptcha</title><link rel="stylesheet" href="styles.css">
+<title>Dashboard — BeeCaptcha</title><link rel="stylesheet" href="styles.css?v=bee-mascot-2">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="bee-core.js"></script></head>
 <body class="app-body">
 <div class="app-shell">
@@ -27,7 +27,7 @@
     <div class="hero-actions"><a id="newSite" class="cta" href="create.html">+ Create Website</a><a class="ghost hero-link" href="integration.html">View Documentation</a></div>
     <div class="hero-chips"><span class="hero-chip">✓ Easy integration</span><span class="hero-chip">◈ Multiple CAPTCHA types</span><span class="hero-chip">▥ Real-time analytics</span></div>
   </div>
-  <div class="hero-art" aria-hidden="true"><div class="hex h1"></div><div class="hex h2"></div><img class="bee-mascot" src="bee-mascot.svg" alt=""><div class="shield-mark">✓</div></div>
+  <div class="hero-art" aria-hidden="true"><div class="hex h1"></div><div class="hex h2"></div><img class="bee-mascot" src="bee-mascot.svg?v=bee-mascot-2" alt=""><div class="shield-mark">✓</div></div>
 </section>
 <section class="dashboard-stats">
   <div class="stat-card"><div class="stat-icon sites-icon">◎</div><small>Total Websites</small><b id="statSites">—</b><span id="statSitesMeta">Protected sites</span></div>
@@ -113,7 +113,7 @@ async function loadOverviewAnalytics(){
 async function loadSites(){
  const {data,error}=await db.from("sites").select("id,name,site_key,allowed_domains,status,plan,captcha_type,created_at").order("created_at",{ascending:false});
  if(error){notice(error.message);return;} sites=data||[]; $("#statSites").textContent=fmt(sites.length); $("#statSitesMeta").textContent=sites.length===1?"1 protected site":"Protected sites";
- const el=$("#sites"); if(!sites.length){el.innerHTML=`<div class="empty empty-modern"><div class="empty-icon"><img class="empty-bee" src="bee-mascot.svg" alt=""></div><h3>No websites yet</h3><p>Create your first protected website and choose a CAPTCHA type.</p><a class="cta" href="create.html">Create Website</a></div>`;await loadOverviewAnalytics();return;}
+ const el=$("#sites"); if(!sites.length){el.innerHTML=`<div class="empty empty-modern"><div class="empty-icon"><img class="empty-bee" src="bee-mascot.svg?v=bee-mascot-2" alt=""></div><h3>No websites yet</h3><p>Create your first protected website and choose a CAPTCHA type.</p><a class="cta" href="create.html">Create Website</a></div>`;await loadOverviewAnalytics();return;}
  el.innerHTML=sites.map(s=>`<article class="site site-card-modern" data-site-search="${esc([s.name,(s.allowed_domains||[]).join(' '),s.site_key,captchaTypeName(s.captcha_type),s.plan].join(' '))}"><div class="site-main"><div class="site-avatar">${esc((s.name||"W").slice(0,1).toUpperCase())}</div><div class="site-title"><div class="site-title-row"><h2>${esc(s.name)}</h2><span class="pill ${esc(s.status)}">${esc(s.status)}</span></div><p>${esc((s.allowed_domains||[])[0]||"No domain configured")}</p></div></div><div class="site-meta"><span class="captcha-badge">${esc(captchaTypeName(s.captcha_type))}</span><span class="site-plan">${esc((s.plan||"free").toUpperCase())}</span></div><div class="site-key-preview"><small>Site key</small><code>${esc(s.site_key)}</code><button class="ghost copy" data-copy="${esc(s.site_key)}">Copy</button></div><div class="site-actions"><button class="ghost" data-action="detail" data-id="${s.id}">Open website</button><button class="ghost" data-action="integration" data-id="${s.id}">Integration</button><button class="ghost" data-action="analytics" data-id="${s.id}">Analytics</button><button class="ghost" data-action="settings" data-id="${s.id}">Settings</button><button class="icon-button" aria-label="Rotate secret" title="Rotate secret" data-action="rotate" data-id="${s.id}">↻</button></div></article>`).join("");
  $$(".copy").forEach(b=>b.onclick=async()=>{if(await copy(b.dataset.copy))notice("Site key copied to clipboard.","ok");});
  $$("[data-action=integration]").forEach(b=>b.onclick=()=>openIntegration(b.dataset.id));
