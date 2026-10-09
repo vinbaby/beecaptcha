@@ -96,10 +96,10 @@ body.app-body{background:var(--bee-bg);color:var(--bee-text)}
 .brand:before{content:"";display:block;flex:0 0 28px;width:28px;height:25px;font-size:0;line-height:0;background:url("bee-mascot.svg") center/contain no-repeat}
 .app-sidebar .brand:before{width:29px;height:27px;flex-basis:29px}
 .hero-art{isolation:isolate;overflow:visible}
-.hero-art .bee-ghost{position:absolute;right:4px;top:-1px;display:block;width:112px;height:96px;object-fit:contain;opacity:.17;filter:grayscale(1) sepia(.65);transform:rotate(12deg);z-index:-1}
+
 .hero-art .bee-mascot{position:absolute;right:34px;top:0;display:block;width:188px;height:166px;object-fit:contain;filter:drop-shadow(0 9px 6px rgba(140,99,0,.12));animation:bee-float 5s ease-in-out infinite}
 @keyframes bee-float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(1deg)}}
 .empty-modern .empty-icon{display:grid;place-items:center;width:72px;height:62px;margin:0 auto 8px}
 .empty-modern .empty-bee{display:block;width:68px;height:58px;object-fit:contain;filter:drop-shadow(0 5px 5px rgba(140,99,0,.12))}
-@media(max-width:980px){.app-sidebar .brand:before{width:28px;height:26px;flex-basis:28px}.hero-art .bee-mascot{right:26px;width:174px;height:154px}.hero-art .bee-ghost{right:0;width:96px;height:84px}}
+@media(max-width:980px){.app-sidebar .brand:before{width:28px;height:26px;flex-basis:28px}.hero-art .bee-mascot{right:26px;width:174px;height:154px}}
 @media(max-width:760px){.hero-art{display:none}.empty-modern .empty-icon{width:62px;height:55px}.empty-modern .empty-bee{width:58px;height:50px}}
