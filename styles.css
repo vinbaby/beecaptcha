@@ -109,3 +109,9 @@ body.app-body{background:var(--bee-bg);color:var(--bee-text)}
 .hero-art .bee-mascot{right:26px;top:-8px;width:205px;height:190px;object-fit:contain;opacity:1;filter:drop-shadow(0 8px 7px rgba(117,76,0,.13));animation:bee-float 5s ease-in-out infinite}
 .empty-modern .empty-bee{width:76px;height:68px;object-fit:contain;opacity:1;filter:drop-shadow(0 4px 5px rgba(117,76,0,.1))}
 @media(max-width:980px){.hero-art .bee-mascot{right:18px;width:182px;height:170px}}
+
+
+/* Honest integration preview states */
+.integration-live-widget{display:block;max-width:440px;margin-top:14px}
+.integration-live-status{font-size:11px;color:#716b60;margin:10px 0 0;line-height:1.55}
+.integration-warning{margin-top:12px;padding:12px 14px;border:1px solid #f1d99a;border-radius:11px;background:#fff8df;color:#7a5a0b;font-size:11px;line-height:1.55}
