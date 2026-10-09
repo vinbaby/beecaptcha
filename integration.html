@@ -9,7 +9,7 @@ const {db,$,requireUser,wireLogout,copy,SUPABASE_URL,query}=Bee;
 const params=query();
 let siteKey="",siteId=params.get("site_id"),siteName="Website",siteStatus="",siteAllowedDomains=[];
 function normalizeDomain(value){const raw=String(value||"").trim();try{return new URL(raw.includes("://")?raw:"https://"+raw).host.toLowerCase();}catch{return raw.toLowerCase();}}
-function allowedOnCurrentHost(){const host=location.host.toLowerCase();return siteAllowedDomains.some(value=>{const domain=normalizeDomain(value);return domain===host||(domain.startsWith("*.")&&host.endsWith(domain.slice(1));});}
+function allowedOnCurrentHost(){const host=location.host.toLowerCase();return siteAllowedDomains.some(value=>{const domain=normalizeDomain(value);return domain===host||(domain.startsWith("*.")&&host.endsWith(domain.slice(1)));});}
 async function init(){
   const user=await requireUser();if(!user)return;wireLogout();
   if(siteId){
