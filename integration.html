@@ -5,7 +5,7 @@ captcha.addEventListener('vin-captcha-verified', (event) =&gt; {
   const { token } = event.detail;
   // Send token to your backend.
 });</pre></article><article class="workspace-card wide"><div class="integration-step"><b>3</b><span>Verify on your backend</span></div><p class="desc">Your server sends the site key, secret key and token to BeeCaptcha. Never send the secret from browser code.</p><pre id="curl" class="detail-code"></pre><button id="copyCurl" class="cta">Copy backend example</button><div class="integration-warning">⚠ Secret keys are server-only. Tokens are short-lived and single-use.</div></article><article id="widgetDemo" class="workspace-card wide" style="margin-top:10px"></article></section></main></div></div><script>
-const {db,$,requireUser,wireLogout,copy,SUPABASE_URL,query}=Bee;
+const {db,$,requireUser,wireLogout,copy,SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,query}=Bee;
 const params=query();
 let siteKey="",siteId=params.get("site_id"),siteName="Website",siteStatus="",siteAllowedDomains=[];
 function normalizeDomain(value){const raw=String(value||"").trim();try{return new URL(raw.includes("://")?raw:"https://"+raw).host.toLowerCase();}catch{return raw.toLowerCase();}}
@@ -39,10 +39,30 @@ function render(){
     description.textContent="The live challenge is not loaded because this dashboard's domain is not in the site's allowed-domain list. Test the embed on one of the domains you registered; domain protection has not been bypassed.";
     const note=document.createElement("div");note.className="integration-warning";note.textContent="Allowed domains: "+(siteAllowedDomains.join(", ")||"none");demo.appendChild(note);return;
   }
-  description.textContent="This uses the real challenge endpoint. Completing it only produces a token; your backend must still verify that token with the secret key.";
+  description.textContent="This runs the real challenge and verifies the selected answer on the server using your signed-in dashboard session. Production websites must still validate tokens with captcha-verify and their server-only Secret Key.";
   const widget=document.createElement("vin-captcha");widget.dataset.vinCaptcha=siteKey;widget.className="integration-live-widget";
   const status=document.createElement("p");status.className="integration-live-status";status.textContent="Loading the live widget…";
-  widget.addEventListener("vin-captcha-verified",()=>{status.textContent="Challenge solved in the browser. The token is not trusted until your backend verifies it with captcha-verify.";});
+  widget.addEventListener("vin-captcha-verified",async(event)=>{
+    status.textContent="Checking the answer on the BeeCaptcha server…";
+    try{
+      const sessionResult=await db.auth.getSession();
+      const accessToken=sessionResult.data?.session?.access_token;
+      if(sessionResult.error||!accessToken){status.textContent="Sign in again to run the server verification test.";return;}
+      const response=await fetch(SUPABASE_URL+"/functions/v1/captcha-test-verify",{
+        method:"POST",
+        headers:{"content-type":"application/json","Authorization":"Bearer "+accessToken,"apikey":SUPABASE_PUBLISHABLE_KEY},
+        body:JSON.stringify({site_id:siteId,verification_token:event.detail.token})
+      });
+      let result={};try{result=await response.json()}catch{}
+      if(response.ok&&result.success===true){
+        status.textContent="✓ Server verified the answer, challenge token, expiry, and single-use status. This dashboard test does not expose your Secret Key.";
+      }else{
+        status.textContent="✕ Server rejected the challenge: "+String(result.code||"verification_failed")+". Refresh this page to start a fresh challenge.";
+      }
+    }catch{
+      status.textContent="Could not reach the server verification test. Check the network and refresh the page.";
+    }
+  });
   demo.append(widget,status);
   const script=document.createElement("script");script.src=SUPABASE_URL+"/functions/v1/widget?site_key="+encodeURIComponent(siteKey);script.async=true;
   script.onerror=()=>{status.textContent="Could not load the widget script. Check the function deployment and reload this page.";};
