@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 220" role="img" aria-labelledby="title desc">
+<title id="title">BeeCaptcha bee mascot</title>
+<desc id="desc">A cheerful golden bee with tiny wings and a smiling face.</desc>
+<defs>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd94f"/><stop offset="1" stop-color="#ffb900"/></linearGradient>
+  <linearGradient id="wing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ddecff"/></linearGradient>
+  <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="5" stdDeviation="3" flood-color="#9a6b00" flood-opacity=".16"/></filter>
+  <clipPath id="body-clip"><path d="M119 106C126 87 158 84 184 94C209 103 215 122 202 140C186 161 153 159 130 144C116 135 112 120 119 106Z"/></clipPath>
+</defs>
+<g filter="url(#soft-shadow)" stroke="#171717" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M127 80C116 57 104 50 91 52" fill="none" stroke-width="6"/>
+  <path d="M151 78C155 56 171 47 186 50" fill="none" stroke-width="6"/>
+  <circle cx="90" cy="52" r="7" fill="#ffcc28" stroke-width="5"/>
+  <circle cx="187" cy="50" r="7" fill="#ffcc28" stroke-width="5"/>
+  <path d="M135 90C117 72 124 48 145 40C165 33 181 48 174 65C168 80 151 91 135 90Z" fill="url(#wing)" stroke-width="6"/>
+  <path d="M155 91C149 71 166 57 187 63C204 68 205 84 190 95C178 103 162 102 155 91Z" fill="url(#wing)" stroke-width="6"/>
+  <path d="M147 145Q139 163 126 166Q119 169 126 174Q136 177 148 163" fill="none" stroke-width="6"/>
+  <path d="M174 146Q174 162 188 165Q197 167 193 173Q184 178 169 164" fill="none" stroke-width="6"/>
+  <path d="M119 106C126 87 158 84 184 94C209 103 215 122 202 140C186 161 153 159 130 144C116 135 112 120 119 106Z" fill="url(#gold)" stroke-width="7"/>
+  <g clip-path="url(#body-clip)" fill="none" stroke="#171717" stroke-width="14">
+    <path d="M147 85C139 108 145 133 164 155"/>
+    <path d="M176 91C169 111 179 133 196 145"/>
+  </g>
+  <path d="M119 106C126 87 158 84 184 94C209 103 215 122 202 140C186 161 153 159 130 144C116 135 112 120 119 106Z" fill="none" stroke-width="7"/>
+  <ellipse cx="99" cy="111" rx="35" ry="32" fill="url(#gold)" stroke-width="7" transform="rotate(-9 99 111)"/>
+  <path d="M70 94Q75 84 87 82" fill="none" stroke="#fff0a9" stroke-width="5"/>
+  <ellipse cx="88" cy="105" rx="4.6" ry="6.3" fill="#171717" stroke="none"/>
+  <ellipse cx="110" cy="102" rx="4.6" ry="6.3" fill="#171717" stroke="none"/>
+  <circle cx="76" cy="117" r="5.3" fill="#ff9b8c" stroke="none" opacity=".85"/>
+  <circle cx="121" cy="115" r="5.3" fill="#ff9b8c" stroke="none" opacity=".85"/>
+  <path d="M91 119Q101 130 113 116" fill="none" stroke-width="3.5"/>
+  <path d="M73 132L67 137" fill="none" stroke="#171717" stroke-width="3"/>
+</g>
+<path d="M46 165C55 157 63 157 69 161" fill="none" stroke="#f5c127" stroke-width="4" stroke-linecap="round" opacity=".8"/>
+<path d="M213 70l4 8 8 4-8 4-4 8-4-8-8-4 8-4z" fill="#ffc928"/>
+</svg>
