@@ -1,36 +1,85 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 220" role="img" aria-labelledby="title desc">
-<title id="title">BeeCaptcha bee mascot</title>
-<desc id="desc">A cheerful golden bee with tiny wings and a smiling face.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" role="img" aria-labelledby="title desc">
+<title id="title">BeeCaptcha fluffy bee mascot</title>
+<desc id="desc">A cheerful fluffy golden bee with soft wings, glossy eyes and warm brown stripes.</desc>
 <defs>
-  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd94f"/><stop offset="1" stop-color="#ffb900"/></linearGradient>
-  <linearGradient id="wing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ddecff"/></linearGradient>
-  <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="5" stdDeviation="3" flood-color="#9a6b00" flood-opacity=".16"/></filter>
-  <clipPath id="body-clip"><path d="M119 106C126 87 158 84 184 94C209 103 215 122 202 140C186 161 153 159 130 144C116 135 112 120 119 106Z"/></clipPath>
+  <radialGradient id="headGold" cx="33%" cy="24%" r="82%">
+    <stop offset="0" stop-color="#fff3ad"/><stop offset=".48" stop-color="#ffd34b"/><stop offset="1" stop-color="#f3a900"/>
+  </radialGradient>
+  <linearGradient id="bodyGold" x1="0" y1="0" x2=".85" y2="1">
+    <stop offset="0" stop-color="#ffe77b"/><stop offset=".55" stop-color="#ffc228"/><stop offset="1" stop-color="#e99a00"/>
+  </linearGradient>
+  <linearGradient id="wing" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f8f1d9"/><stop offset="1" stop-color="#d8e6ef"/>
+  </linearGradient>
+  <radialGradient id="eye" cx="32%" cy="22%" r="78%">
+    <stop offset="0" stop-color="#53616b"/><stop offset=".23" stop-color="#131b20"/><stop offset="1" stop-color="#020609"/>
+  </radialGradient>
+  <linearGradient id="stripe" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#513326"/><stop offset=".5" stop-color="#241912"/><stop offset="1" stop-color="#75462a"/>
+  </linearGradient>
+  <filter id="shadow" x="-30%" y="-30%" width="170%" height="175%">
+    <feDropShadow dx="0" dy="7" stdDeviation="5" flood-color="#8b5700" flood-opacity=".2"/>
+  </filter>
+  <clipPath id="bodyClip"><ellipse cx="198" cy="178" rx="71" ry="67" transform="rotate(-12 198 178)"/></clipPath>
+  <clipPath id="headClip"><circle cx="119" cy="135" r="64"/></clipPath>
 </defs>
-<g filter="url(#soft-shadow)" stroke="#171717" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M127 80C116 57 104 50 91 52" fill="none" stroke-width="6"/>
-  <path d="M151 78C155 56 171 47 186 50" fill="none" stroke-width="6"/>
-  <circle cx="90" cy="52" r="7" fill="#ffcc28" stroke-width="5"/>
-  <circle cx="187" cy="50" r="7" fill="#ffcc28" stroke-width="5"/>
-  <path d="M135 90C117 72 124 48 145 40C165 33 181 48 174 65C168 80 151 91 135 90Z" fill="url(#wing)" stroke-width="6"/>
-  <path d="M155 91C149 71 166 57 187 63C204 68 205 84 190 95C178 103 162 102 155 91Z" fill="url(#wing)" stroke-width="6"/>
-  <path d="M147 145Q139 163 126 166Q119 169 126 174Q136 177 148 163" fill="none" stroke-width="6"/>
-  <path d="M174 146Q174 162 188 165Q197 167 193 173Q184 178 169 164" fill="none" stroke-width="6"/>
-  <path d="M119 106C126 87 158 84 184 94C209 103 215 122 202 140C186 161 153 159 130 144C116 135 112 120 119 106Z" fill="url(#gold)" stroke-width="7"/>
-  <g clip-path="url(#body-clip)" fill="none" stroke="#171717" stroke-width="14">
-    <path d="M147 85C139 108 145 133 164 155"/>
-    <path d="M176 91C169 111 179 133 196 145"/>
+<g filter="url(#shadow)" stroke-linecap="round" stroke-linejoin="round">
+  <!-- soft fuzzy wings -->
+  <path d="M139 106C106 91 100 60 119 45C140 30 166 53 169 86C170 100 158 111 139 106Z" fill="url(#wing)" stroke="#d8cdae" stroke-width="4"/>
+  <path d="M171 99C161 71 180 48 202 52C222 56 226 83 205 105C194 116 180 112 171 99Z" fill="url(#wing)" stroke="#d8cdae" stroke-width="4"/>
+  <path d="M132 94C120 72 122 57 137 50M188 96C188 77 197 66 207 64" fill="none" stroke="#fff" stroke-width="3" opacity=".85"/>
+  <!-- antennae -->
+  <path d="M99 91C88 70 80 58 67 52" fill="none" stroke="#70452a" stroke-width="9"/>
+  <path d="M145 83C148 61 161 48 178 46" fill="none" stroke="#70452a" stroke-width="9"/>
+  <path d="M96 87C87 68 78 59 69 55M146 80C151 61 164 51 175 49" fill="none" stroke="#b78549" stroke-width="3" opacity=".8"/>
+  <ellipse cx="65" cy="50" rx="10" ry="12" fill="#5b3925"/>
+  <ellipse cx="180" cy="45" rx="10" ry="12" fill="#5b3925"/>
+  <path d="M60 45l5 -3M175 39l4 -2" stroke="#d7a46b" stroke-width="2.5"/>
+  <!-- body -->
+  <ellipse cx="198" cy="178" rx="71" ry="67" transform="rotate(-12 198 178)" fill="url(#bodyGold)" stroke="#3a281a" stroke-width="5"/>
+  <g clip-path="url(#bodyClip)">
+    <path d="M118 145C158 121 224 126 270 152L272 174C227 150 167 152 121 176Z" fill="url(#stripe)"/>
+    <path d="M124 183C166 161 228 170 267 194L262 214C223 191 169 188 131 207Z" fill="url(#stripe)"/>
+    <path d="M139 219C174 205 215 209 249 228L236 248C205 230 171 229 149 241Z" fill="url(#stripe)"/>
+    <path d="M134 139C176 119 227 128 263 148" fill="none" stroke="#9c6333" stroke-width="4" opacity=".65"/>
+    <path d="M135 180C179 160 225 171 259 190" fill="none" stroke="#9c6333" stroke-width="4" opacity=".6"/>
+    <path d="M148 217C180 205 214 211 244 227" fill="none" stroke="#9c6333" stroke-width="3" opacity=".65"/>
+    <g stroke="#ffe991" stroke-width="2" opacity=".8">
+      <path d="M158 133l-4 8M171 129l-2 8M185 128l1 8M201 128l2 8M217 131l4 8M235 136l4 8"/>
+      <path d="M157 170l-3 8M175 166l-1 8M195 166l2 8M215 170l4 8M234 177l4 8"/>
+      <path d="M169 209l-3 7M188 207l1 7M207 211l3 7M224 218l4 7"/>
+    </g>
   </g>
-  <path d="M119 106C126 87 158 84 184 94C209 103 215 122 202 140C186 161 153 159 130 144C116 135 112 120 119 106Z" fill="none" stroke-width="7"/>
-  <ellipse cx="99" cy="111" rx="35" ry="32" fill="url(#gold)" stroke-width="7" transform="rotate(-9 99 111)"/>
-  <path d="M70 94Q75 84 87 82" fill="none" stroke="#fff0a9" stroke-width="5"/>
-  <ellipse cx="88" cy="105" rx="4.6" ry="6.3" fill="#171717" stroke="none"/>
-  <ellipse cx="110" cy="102" rx="4.6" ry="6.3" fill="#171717" stroke="none"/>
-  <circle cx="76" cy="117" r="5.3" fill="#ff9b8c" stroke="none" opacity=".85"/>
-  <circle cx="121" cy="115" r="5.3" fill="#ff9b8c" stroke="none" opacity=".85"/>
-  <path d="M91 119Q101 130 113 116" fill="none" stroke-width="3.5"/>
-  <path d="M73 132L67 137" fill="none" stroke="#171717" stroke-width="3"/>
+  <!-- little fuzzy feet -->
+  <path d="M168 225C164 242 156 250 147 258" fill="none" stroke="#302018" stroke-width="8"/>
+  <path d="M205 238C205 251 211 259 221 265" fill="none" stroke="#302018" stroke-width="8"/>
+  <ellipse cx="142" cy="262" rx="13" ry="8" fill="#543622" transform="rotate(-26 142 262)"/>
+  <ellipse cx="226" cy="268" rx="13" ry="8" fill="#543622" transform="rotate(28 226 268)"/>
+  <!-- head -->
+  <circle cx="119" cy="135" r="64" fill="url(#headGold)" stroke="#3a281a" stroke-width="5"/>
+  <g clip-path="url(#headClip)" fill="none" stroke="#fff0a0" stroke-linecap="round">
+    <path d="M65 104q9-20 27-26M81 82l4 8M91 75l4 8M105 72l2 7M120 71l1 7M136 75l-1 7M151 81l-3 7M164 94l-5 6" stroke-width="2.6" opacity=".95"/>
+    <path d="M62 126l7-2M62 143l7 1M69 163l7-3M82 182l5-5M101 193l2-7M125 194l-1-7M147 184l-4-6M165 169l-5-4M171 145l-7-1" stroke-width="2.1" opacity=".7"/>
+    <path d="M74 115l5-4M88 101l4-4M108 94l2-6M133 96l2-5M151 110l5-3" stroke-width="1.8" opacity=".7"/>
+  </g>
+  <!-- eyes and face -->
+  <ellipse cx="99" cy="130" rx="12" ry="16" fill="url(#eye)" stroke="#2e2119" stroke-width="3"/>
+  <ellipse cx="139" cy="128" rx="12" ry="16" fill="url(#eye)" stroke="#2e2119" stroke-width="3"/>
+  <ellipse cx="95" cy="124" rx="4" ry="5" fill="#fff" opacity=".98"/>
+  <ellipse cx="135" cy="122" rx="4" ry="5" fill="#fff" opacity=".98"/>
+  <circle cx="104" cy="137" r="2" fill="#95a7b0" opacity=".8"/>
+  <circle cx="144" cy="135" r="2" fill="#95a7b0" opacity=".8"/>
+  <ellipse cx="79" cy="151" rx="9" ry="5.5" fill="#ff9c8b" opacity=".65"/>
+  <ellipse cx="154" cy="149" rx="9" ry="5.5" fill="#ff9c8b" opacity=".65"/>
+  <path d="M111 155C118 163 130 163 136 154" fill="none" stroke="#302018" stroke-width="4"/>
+  <path d="M116 157q7 5 13 0" fill="none" stroke="#fff7d2" stroke-width="1.7"/>
+  <!-- tiny fur wisps around silhouette -->
+  <g fill="none" stroke="#ffdc58" stroke-width="2.2" stroke-linecap="round">
+    <path d="M73 91l-5-6M86 80l-2-7M105 70l1-7M126 71l4-6M148 81l5-5M169 104l6-2"/>
+    <path d="M56 123l-6-2M54 144l-6 2M64 169l-5 5M82 190l-2 6M111 202l1 6M143 196l4 5"/>
+    <path d="M246 146l7-3M258 166l6 1M253 197l6 4M226 232l5 7M192 245l1 7"/>
+  </g>
+  <path d="M43 154l-8 4M48 178l-7 4" fill="none" stroke="#ffc928" stroke-width="4"/>
+  <path d="M270 75l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" fill="#ffc928" stroke="none"/>
 </g>
-<path d="M46 165C55 157 63 157 69 161" fill="none" stroke="#f5c127" stroke-width="4" stroke-linecap="round" opacity=".8"/>
-<path d="M213 70l4 8 8 4-8 4-4 8-4-8-8-4 8-4z" fill="#ffc928"/>
 </svg>
