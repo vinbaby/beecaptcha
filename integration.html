@@ -5,8 +5,48 @@ captcha.addEventListener('vin-captcha-verified', (event) =&gt; {
   const { token } = event.detail;
   // Send token to your backend.
 });</pre></article><article class="workspace-card wide"><div class="integration-step"><b>3</b><span>Verify on your backend</span></div><p class="desc">Your server sends the site key, secret key and token to BeeCaptcha. Never send the secret from browser code.</p><pre id="curl" class="detail-code"></pre><button id="copyCurl" class="cta">Copy backend example</button><div class="integration-warning">⚠ Secret keys are server-only. Tokens are short-lived and single-use.</div></article><article id="widgetDemo" class="workspace-card wide" style="margin-top:10px"></article></section></main></div></div><script>
-const {db,$,requireUser,wireLogout,copy,SUPABASE_URL,query}=Bee;const params=query();let siteKey="",siteId=params.get("site_id"),siteName="Website";
-async function init(){const user=await requireUser();if(!user)return;wireLogout();if(siteId){const r=await db.from("sites").select("id,name,site_key,status").eq("id",siteId).eq("owner_id",user.id).maybeSingle();if(!r.data){siteId="";siteKey="YOUR_SITE_KEY";}else{siteKey=r.data.site_key;siteName=r.data.name;$("#backSite").href="website.html?id="+encodeURIComponent(r.data.id);$("#integrationSiteName").textContent=r.data.name;}}else{siteKey=params.get("site_key")||"YOUR_SITE_KEY";}render();}
-function render(){const embed=`<script src="${SUPABASE_URL}/functions/v1/widget?site_key=${encodeURIComponent(siteKey)}"><\/script>\n<vin-captcha data-vin-captcha="${siteKey}"></vin-captcha>`;const curl=`curl -X POST "${SUPABASE_URL}/functions/v1/captcha-verify" \\\n  -H "content-type: application/json" \\\n  -d '{"site_key":"${siteKey}","secret_key":"YOUR_SECRET_KEY","verification_token":"TOKEN_FROM_WIDGET"}'`;$("#embed").textContent=embed;$("#curl").textContent=curl;const demo=$("#widgetDemo");if(demo)demo.innerHTML=`<h3>Live preview</h3><p class="desc">A safe visual preview using your public site key. Your secret never appears here.</p><div class="integration-demo"><strong>${Bee.esc(siteName)}</strong><span>✓ Human verification</span><small>Widget container preview</small></div>`;}
+const {db,$,requireUser,wireLogout,copy,SUPABASE_URL,query}=Bee;
+const params=query();
+let siteKey="",siteId=params.get("site_id"),siteName="Website",siteStatus="",siteAllowedDomains=[];
+function normalizeDomain(value){const raw=String(value||"").trim();try{return new URL(raw.includes("://")?raw:"https://"+raw).host.toLowerCase();}catch{return raw.toLowerCase();}}
+function allowedOnCurrentHost(){const host=location.host.toLowerCase();return siteAllowedDomains.some(value=>{const domain=normalizeDomain(value);return domain===host||(domain.startsWith("*.")&&host.endsWith(domain.slice(1));});}
+async function init(){
+  const user=await requireUser();if(!user)return;wireLogout();
+  if(siteId){
+    const r=await db.from("sites").select("id,name,site_key,status,allowed_domains").eq("id",siteId).eq("owner_id",user.id).maybeSingle();
+    if(!r.data){siteId="";siteKey="YOUR_SITE_KEY";}
+    else{siteKey=r.data.site_key;siteName=r.data.name;siteStatus=r.data.status;siteAllowedDomains=r.data.allowed_domains||[];$("#backSite").href="website.html?id="+encodeURIComponent(r.data.id);$("#integrationSiteName").textContent=r.data.name;}
+  }else{siteKey=params.get("site_key")||"YOUR_SITE_KEY";}
+  render();
+}
+function render(){
+  const embed='<script src="'+SUPABASE_URL+'/functions/v1/widget?site_key='+encodeURIComponent(siteKey)+'"><\/script>\n<vin-captcha data-vin-captcha="'+siteKey+'"></vin-captcha>';
+  const curl='curl -X POST "'+SUPABASE_URL+'/functions/v1/captcha-verify" \\\n  -H "content-type: application/json" \\\n  -d \'{"site_key":"'+siteKey+'","secret_key":"YOUR_SECRET_KEY","verification_token":"TOKEN_FROM_WIDGET"}\'';
+  $("#embed").textContent=embed;$("#curl").textContent=curl;
+  const demo=$("#widgetDemo");if(!demo)return;demo.replaceChildren();
+  const title=document.createElement("h3");title.textContent=siteId?"Live CAPTCHA test":"Widget preview";
+  const description=document.createElement("p");description.className="desc";
+  demo.append(title,description);
+  if(!siteId){
+    description.textContent="Open this page from a website you own in Dashboard to load its real CAPTCHA. This preview stays visual-only until a site is selected.";
+    const preview=document.createElement("div");preview.className="integration-demo";preview.innerHTML="<strong>Human verification</strong><span>✓ BeeCaptcha widget area</span><small>Choose an owned website to run a real challenge.</small>";demo.appendChild(preview);return;
+  }
+  if(siteStatus!=="active"){
+    description.textContent="This site is disabled. Enable it in Website Settings before running the live test.";
+    return;
+  }
+  if(!allowedOnCurrentHost()){
+    description.textContent="The live challenge is not loaded because this dashboard's domain is not in the site's allowed-domain list. Test the embed on one of the domains you registered; domain protection has not been bypassed.";
+    const note=document.createElement("div");note.className="integration-warning";note.textContent="Allowed domains: "+(siteAllowedDomains.join(", ")||"none");demo.appendChild(note);return;
+  }
+  description.textContent="This uses the real challenge endpoint. Completing it only produces a token; your backend must still verify that token with the secret key.";
+  const widget=document.createElement("vin-captcha");widget.dataset.vinCaptcha=siteKey;widget.className="integration-live-widget";
+  const status=document.createElement("p");status.className="integration-live-status";status.textContent="Loading the live widget…";
+  widget.addEventListener("vin-captcha-verified",()=>{status.textContent="Challenge solved in the browser. The token is not trusted until your backend verifies it with captcha-verify.";});
+  demo.append(widget,status);
+  const script=document.createElement("script");script.src=SUPABASE_URL+"/functions/v1/widget?site_key="+encodeURIComponent(siteKey);script.async=true;
+  script.onerror=()=>{status.textContent="Could not load the widget script. Check the function deployment and reload this page.";};
+  demo.appendChild(script);
+}
 async function cp(v,b){if(await copy(v)){const old=b.textContent;b.textContent="Copied";setTimeout(()=>b.textContent=old,1200)}}$("#copyEmbed").onclick=()=>cp($("#embed").textContent,$("#copyEmbed"));$("#copyCurl").onclick=()=>cp($("#curl").textContent,$("#copyCurl"));init();
 </script></body></html>
