@@ -52,7 +52,7 @@
 <h2>Add website</h2><p class="muted">The secret key is shown once. Store it securely on your backend.</p>
 <label>Website name<input id="name" required maxlength="120" placeholder="My website"></label>
 <label>Allowed domains<input id="domain" required placeholder="example.com"></label>
-<div class="captcha-picker"><div class="picker-label">Choose CAPTCHA type</div><p class="muted">Select the protection style your website will use. You can change it later.</p><div id="captchaOptions" class="captcha-options"></div><input type="hidden" id="captchaType" value="visual_select_v1"></div>
+<div class="captcha-picker"><div class="picker-label">Choose CAPTCHA type</div><p class="muted">Select the protection style your website will use. You can change it later.</p><div id="captchaOptions" class="captcha-options"></div><input type="hidden" id="captchaType" value="image_select_v1"></div>
 <div class="actions"><button value="cancel" class="ghost">Cancel</button><button id="create" value="default">Create site</button></div>
 </form></dialog>
 
@@ -60,7 +60,7 @@
 <h2>Site settings</h2><input type="hidden" id="settingsId">
 <label>Website name<input id="settingsName" required maxlength="120"></label>
 <label>Allowed domains <span class="muted">(one per line)</span><textarea id="settingsDomains" rows="5" required></textarea></label>
-<div class="captcha-picker"><div class="picker-label">CAPTCHA type</div><div id="settingsCaptchaOptions" class="captcha-options compact"></div><input type="hidden" id="settingsCaptchaType" value="visual_select_v1"></div>
+<div class="captcha-picker"><div class="picker-label">CAPTCHA type</div><div id="settingsCaptchaOptions" class="captcha-options compact"></div><input type="hidden" id="settingsCaptchaType" value="image_select_v1"></div>
 <label>Status<select id="settingsStatus"><option value="active">Active</option><option value="disabled">Disabled</option></select></label>
 <div class="actions"><button value="cancel" class="ghost">Cancel</button><button value="default">Save changes</button></div>
 </form></dialog>
@@ -91,8 +91,8 @@ function renderCaptchaOptions(containerSelector,inputSelector,selected){
 async function loadCatalog(){
  const {data,error}=await db.from("captcha_types").select("code,name,description,active,sort_order").eq("active",true).order("sort_order");
  if(error){notice(error.message);return false;} captchaTypes=data||[];
- renderCaptchaOptions("#captchaOptions","#captchaType","visual_select_v1");
- renderCaptchaOptions("#settingsCaptchaOptions","#settingsCaptchaType","visual_select_v1"); return true;
+ renderCaptchaOptions("#captchaOptions","#captchaType","image_select_v1");
+ renderCaptchaOptions("#settingsCaptchaOptions","#settingsCaptchaType","image_select_v1"); return true;
 }
 async function loadBilling(){
  const {data}=await db.rpc("vin_get_billing_summary"); billing=data||{plan:"free",status:"active"};
@@ -125,7 +125,7 @@ async function loadSites(){
  await loadOverviewAnalytics(); filterSites();
 }
 function filterSites(){const q=("#globalSearch"&&$("#globalSearch")?.value||"").trim().toLowerCase();let matches=0;$$("#sites .site-card-modern").forEach(card=>{const hit=!q||card.dataset.siteSearch.toLowerCase().includes(q);card.hidden=!hit;if(hit)matches++;});$("#siteSearchState").textContent=q&&matches===0?"No matching websites":"";}
-function openSettings(id){const s=sites.find(x=>x.id===id);if(!s)return;$("#settingsId").value=s.id;$("#settingsName").value=s.name;$("#settingsDomains").value=(s.allowed_domains||[]).join("\n");$("#settingsStatus").value=s.status;renderCaptchaOptions("#settingsCaptchaOptions","#settingsCaptchaType",s.captcha_type||"visual_select_v1");$("#settingsModal").showModal();}
+function openSettings(id){const s=sites.find(x=>x.id===id);if(!s)return;$("#settingsId").value=s.id;$("#settingsName").value=s.name;$("#settingsDomains").value=(s.allowed_domains||[]).join("\n");$("#settingsStatus").value=s.status;renderCaptchaOptions("#settingsCaptchaOptions","#settingsCaptchaType",s.captcha_type||"image_select_v1");$("#settingsModal").showModal();}
 async function saveSettings(){const s=sites.find(x=>x.id==$("#settingsId").value);if(!s)return;const btn=$("#settingsForm button[type=submit]");Bee.setBusy(btn,true,"Saving…");const payload={name:$("#settingsName").value.trim(),allowed_domains:Bee.domains($("#settingsDomains").value),status:$("#settingsStatus").value,captcha_type:$("#settingsCaptchaType").value};const {error}=await db.from("sites").update(payload).eq("id",s.id).eq("owner_id",user.id);Bee.setBusy(btn,false);if(error){notice(error.message);return;}Object.assign(s,payload);$("#settingsModal").close();notice("Website settings updated.","ok");loadSites();}
 async function rotateSecret(id){const s=sites.find(x=>x.id===id);if(!s||!confirm(`Rotate the secret for ${s.name}? The old secret stops working immediately.`))return;const {data:{session}}=await db.auth.getSession();if(!session){location.href="login.html";return;}const r=await fetch(Bee.SUPABASE_URL+"/functions/v1/site-rotate-secret",{method:"POST",headers:{Authorization:"Bearer "+session.access_token,"content-type":"application/json"},body:JSON.stringify({site_id:id})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.success){notice(d.error||"Could not rotate secret.");return;}$("#newSecret").textContent=d.secret_key;$("#secretModal").showModal();}
 async function init(){user=await requireUser();if(!user)return;wireLogout();$("#globalSearch")?.addEventListener("input",filterSites);$("#refreshSites")?.addEventListener("click",()=>loadSites());$("#quickAnalytics")?.addEventListener("click",e=>{e.preventDefault();location.href="analytics.html"});$("#overviewAnalytics")?.addEventListener("click",()=>location.href="analytics.html");$("#settingsForm")?.addEventListener("submit",e=>{e.preventDefault();saveSettings();});$("#copySecret")?.addEventListener("click",async()=>{if(await copy($("#newSecret").textContent)){notice("Secret copied.","ok");}});await loadCatalog();await loadBilling();await loadSites();$("#globalSearch")?.focus();}
