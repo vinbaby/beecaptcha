@@ -42,7 +42,10 @@
       </div>
 
       <section class="workspace-card" style="margin-bottom:16px">
-        <label for="platform" style="display:block;margin:0 0 7px">1. Choose your platform</label>
+        <label for="siteUrl" style="display:block;margin:0 0 7px">1. Paste your website URL</label>
+        <input id="siteUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com" style="max-width:520px;margin-bottom:5px">
+        <p id="siteUrlStatus" class="desc" role="status" style="margin-top:0">Use a domain already registered in Website Settings.</p>
+        <label for="platform" style="display:block;margin:0 0 7px">2. Choose your platform</label>
         <select id="platform" style="max-width:520px">
           <option value="html-node">HTML / JavaScript + Node.js (Express)</option>
           <option value="react-node">React + Node.js (Express)</option>
@@ -50,6 +53,13 @@
           <option value="php">HTML / JavaScript + PHP</option>
         </select>
         <p id="platformDescription" class="desc" style="margin-bottom:0">Static HTML widget, with an Express endpoint that verifies the token on your server.</p>
+      </section>
+
+      <section class="workspace-card" id="packageBuilder" style="margin-bottom:16px">
+        <div class="integration-step"><b>3</b><span>Generate your ready-to-configure package</span></div>
+        <p class="desc">BeeCaptcha packages the selected platform with your Site Key, website URL, frontend example, backend verification endpoint, and setup instructions. Your Secret Key is never included.</p>
+        <button id="generatePackage" class="cta" type="button">Generate &amp; download ZIP</button>
+        <p id="packageStatus" class="desc" role="status" aria-live="polite" style="margin-bottom:0">Choose a registered website URL and platform, then generate your package.</p>
       </section>
 
       <section class="integration-card-grid">
@@ -319,6 +329,332 @@ function renderSnippets(){
   $("#frontendCode").textContent=config.frontend;
   $("#backendCode").textContent=config.backend;
 }
+
+function isAllowedWebsiteHost(host){
+  const normalized=String(host||"").toLowerCase().replace(/\.$/,"");
+  return siteAllowedDomains.some(value=>{
+    let domain=normalizeDomain(value).toLowerCase().replace(/\.$/,"");
+    domain=domain.replace(/:\d+$/,"");
+    if(domain.startsWith("*."))return normalized.endsWith(domain.slice(1))&&normalized!==domain.slice(2);
+    return normalized===domain;
+  });
+}
+function setPackageStatus(message,isError=false){
+  const node=$("#packageStatus");
+  if(!node)return;
+  node.textContent=message;
+  node.style.color=isError?"#a53232":"";
+}
+function makeNodeServer(){
+  return [
+    'import express from "express";',
+    'import dotenv from "dotenv";',
+    'dotenv.config();',
+    '',
+    'const app = express();',
+    'app.disable("x-powered-by");',
+    'app.use(express.json({ limit: "10kb" }));',
+    'app.use(express.static("public"));',
+    '',
+    'app.post("/api/verify-captcha", async (req, res) => {',
+    '  const token = req.body?.token;',
+    '  const siteKey = process.env.VIN_CAPTCHA_SITE_KEY;',
+    '  const secretKey = process.env.VIN_CAPTCHA_SECRET_KEY;',
+    '  if (typeof token !== "string" || !token) {',
+    '    return res.status(400).json({ success: false, code: "missing_token" });',
+    '  }',
+    '  if (!siteKey || !secretKey) {',
+    '    return res.status(500).json({ success: false, code: "captcha_not_configured" });',
+    '  }',
+    '  try {',
+    '    const upstream = await fetch(' + jsString(VERIFY_URL) + ', {',
+    '      method: "POST",',
+    '      headers: { "content-type": "application/json" },',
+    '      body: JSON.stringify({ site_key: siteKey, secret_key: secretKey, verification_token: token }),',
+    '      cache: "no-store"',
+    '    });',
+    '    const result = await upstream.json();',
+    '    if (!upstream.ok || result.success !== true) {',
+    '      return res.status(400).json({ success: false, code: result.code || "verification_failed" });',
+    '    }',
+    '    // Perform the protected action here only after successful verification.',
+    '    return res.json({ success: true });',
+    '  } catch {',
+    '    return res.status(502).json({ success: false, code: "verification_unavailable" });',
+    '  }',
+    '});',
+    '',
+    'const port = Number(process.env.PORT || 3000);',
+    'app.listen(port, () => console.log("BeeCaptcha integration server listening on " + port));',
+    ''
+  ].join("\n");
+}
+function makeHtmlApp(){
+  return [
+    '<!doctype html>',
+    '<html lang="en">',
+    '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha protected form</title>',
+    '<script src="' + WIDGET_URL + '?site_key=' + encodeURIComponent(siteKey) + '" async defer>' + closeScript,
+    '<style>body{font:16px system-ui,sans-serif;max-width:640px;margin:48px auto;padding:0 18px}form{display:grid;gap:14px}input,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #ccc}button{cursor:pointer;background:#f6b900;border:0;font-weight:700}vin-captcha{display:block}#message{min-height:24px}</style></head>',
+    '<body><h1>Protected form</h1><p>Example integration generated for your BeeCaptcha website.</p>',
+    '<form id="protected-form"><label>Email<br><input type="email" name="email" required></label>',
+    '<vin-captcha data-vin-captcha="' + siteKey + '"></vin-captcha>',
+    '<button type="submit">Verify and continue</button><p id="message" role="status" aria-live="polite"></p></form>',
+    '<script>',
+    'let verificationToken = "";',
+    'const captcha = document.querySelector("vin-captcha");',
+    'const form = document.querySelector("#protected-form");',
+    'const message = document.querySelector("#message");',
+    'captcha.addEventListener("vin-captcha-verified", (event) => { verificationToken = event.detail.token; message.textContent = "Challenge completed; submit to verify the token on your server."; });',
+    'form.addEventListener("submit", async (event) => {',
+    '  event.preventDefault();',
+    '  if (!verificationToken) { message.textContent = "Complete the CAPTCHA first."; return; }',
+    '  message.textContent = "Verifying with the BeeCaptcha server…";',
+    '  try {',
+    '    const response = await fetch("/api/verify-captcha", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: verificationToken }) });',
+    '    const result = await response.json();',
+    '    if (!response.ok || result.success !== true) { verificationToken = ""; message.textContent = "Verification failed. Refresh the challenge and try again."; return; }',
+    '    message.textContent = "CAPTCHA verified by your server. Add your protected action here."; ',
+    '    // Process the form on your server only after this check succeeds.',
+    '  } catch { message.textContent = "Verification service unavailable. Try again."; }',
+    '});',
+    closeScript,
+    '</body></html>'
+  ].join("\n");
+}
+function makeReactApp(){
+  return [
+    'import { useEffect, useRef, useState } from "react";',
+    '',
+    'const SITE_KEY = ' + jsString(siteKey) + ';',
+    'const WIDGET_URL = ' + jsString(WIDGET_URL) + ';',
+    '',
+    'export default function App() {',
+    '  const hostRef = useRef(null);',
+    '  const [token, setToken] = useState("");',
+    '  const [message, setMessage] = useState("");',
+    '  useEffect(() => {',
+    '    const host = hostRef.current;',
+    '    if (!host) return;',
+    '    const captcha = document.createElement("vin-captcha");',
+    '    captcha.setAttribute("data-vin-captcha", SITE_KEY);',
+    '    const onVerified = (event) => setToken(event.detail.token);',
+    '    captcha.addEventListener("vin-captcha-verified", onVerified);',
+    '    host.appendChild(captcha);',
+    '    const script = document.createElement("script");',
+    '    script.src = WIDGET_URL + "?site_key=" + encodeURIComponent(SITE_KEY);',
+    '    script.async = true;',
+    '    document.head.appendChild(script);',
+    '    return () => { captcha.removeEventListener("vin-captcha-verified", onVerified); captcha.remove(); script.remove(); };',
+    '  }, []);',
+    '  async function handleSubmit(event) {',
+    '    event.preventDefault();',
+    '    if (!token) { setMessage("Complete the CAPTCHA first."); return; }',
+    '    setMessage("Verifying…");',
+    '    try {',
+    '      const response = await fetch("/api/verify-captcha", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) });',
+    '      const result = await response.json();',
+    '      if (!response.ok || result.success !== true) { setToken(""); setMessage("Verification failed. Try a fresh challenge."); return; }',
+    '      setMessage("CAPTCHA verified by your server. Add your protected action here.");',
+    '    } catch { setMessage("Verification service unavailable. Try again."); }',
+    '  }',
+    '  return <main style={{fontFamily:"system-ui",maxWidth:640,margin:"48px auto",padding:18}}><h1>Protected form</h1><form onSubmit={handleSubmit}><label>Email <input type="email" required /></label><div ref={hostRef} style={{margin:"18px 0"}} /><button type="submit">Verify and continue</button><p role="status">{message}</p></form></main>;',
+    '}'
+  ].join("\n");
+}
+function makeNextComponent(){
+  return [
+    '"use client";',
+    'import { useEffect, useRef, useState } from "react";',
+    '',
+    'const SITE_KEY = ' + jsString(siteKey) + ';',
+    'const WIDGET_URL = ' + jsString(WIDGET_URL) + ';',
+    '',
+    'export default function VinCaptchaForm() {',
+    '  const hostRef = useRef<HTMLDivElement | null>(null);',
+    '  const [token, setToken] = useState("");',
+    '  const [message, setMessage] = useState("");',
+    '  useEffect(() => {',
+    '    const host = hostRef.current;',
+    '    if (!host) return;',
+    '    const captcha = document.createElement("vin-captcha");',
+    '    captcha.setAttribute("data-vin-captcha", SITE_KEY);',
+    '    const onVerified = (event: Event) => setToken((event as CustomEvent<{token:string}>).detail.token);',
+    '    captcha.addEventListener("vin-captcha-verified", onVerified);',
+    '    host.appendChild(captcha);',
+    '    const script = document.createElement("script");',
+    '    script.src = WIDGET_URL + "?site_key=" + encodeURIComponent(SITE_KEY);',
+    '    script.async = true;',
+    '    document.head.appendChild(script);',
+    '    return () => { captcha.removeEventListener("vin-captcha-verified", onVerified); captcha.remove(); script.remove(); };',
+    '  }, []);',
+    '  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {',
+    '    event.preventDefault();',
+    '    if (!token) { setMessage("Complete the CAPTCHA first."); return; }',
+    '    setMessage("Verifying…");',
+    '    try {',
+    '      const response = await fetch("/api/verify-captcha", { method: "POST", headers: {"content-type":"application/json"}, body: JSON.stringify({token}) });',
+    '      const result = await response.json();',
+    '      if (!response.ok || result.success !== true) { setToken(""); setMessage("Verification failed. Try a fresh challenge."); return; }',
+    '      setMessage("CAPTCHA verified by your server. Add your protected action here.");',
+    '    } catch { setMessage("Verification service unavailable. Try again."); }',
+    '  }',
+    '  return <main><h1>Protected form</h1><form onSubmit={handleSubmit}><label>Email <input type="email" required /></label><div ref={hostRef} style={{margin:"18px 0"}} /><button type="submit">Verify and continue</button><p role="status">{message}</p></form></main>;',
+    '}'
+  ].join("\n");
+}
+function makeNextRoute(){
+  return [
+    'import { NextResponse } from "next/server";',
+    '',
+    'export async function POST(request: Request) {',
+    '  const body = await request.json().catch(() => ({}));',
+    '  if (typeof body.token !== "string" || !body.token) return NextResponse.json({success:false,code:"missing_token"},{status:400});',
+    '  const siteKey = process.env.VIN_CAPTCHA_SITE_KEY;',
+    '  const secretKey = process.env.VIN_CAPTCHA_SECRET_KEY;',
+    '  if (!siteKey || !secretKey) return NextResponse.json({success:false,code:"captcha_not_configured"},{status:500});',
+    '  try {',
+    '    const upstream = await fetch(' + jsString(VERIFY_URL) + ', {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({site_key:siteKey,secret_key:secretKey,verification_token:body.token}),cache:"no-store"});',
+    '    const result = await upstream.json();',
+    '    if (!upstream.ok || result.success !== true) return NextResponse.json({success:false,code:result.code||"verification_failed"},{status:400});',
+    '    // Perform your protected action here only after successful verification.',
+    '    return NextResponse.json({success:true});',
+    '  } catch { return NextResponse.json({success:false,code:"verification_unavailable"},{status:502}); }',
+    '}'
+  ].join("\n");
+}
+function makePhpPage(){
+  return [
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha protected form</title>',
+    '<script src="' + WIDGET_URL + '?site_key=' + encodeURIComponent(siteKey) + '" async defer>' + closeScript,
+    '</head><body><h1>Protected form</h1><form id="protected-form"><label>Email <input type="email" required></label><vin-captcha data-vin-captcha="' + siteKey + '"></vin-captcha><button>Verify and continue</button><p id="message" role="status"></p></form>',
+    '<script>',
+    'let token = "";',
+    'document.querySelector("vin-captcha").addEventListener("vin-captcha-verified", event => { token = event.detail.token; });',
+    'document.querySelector("#protected-form").addEventListener("submit", async event => {',
+    '  event.preventDefault(); const message = document.querySelector("#message");',
+    '  if (!token) { message.textContent = "Complete the CAPTCHA first."; return; }',
+    '  try { const response = await fetch("verify-captcha.php", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token})}); const result = await response.json();',
+    '    if (!response.ok || result.success !== true) { token = ""; message.textContent = "Verification failed. Try a fresh challenge."; return; }',
+    '    message.textContent = "CAPTCHA verified by your server. Add your protected action here."; ',
+    '  } catch { message.textContent = "Verification service unavailable. Try again."; }',
+    '});',
+    closeScript,
+    '</body></html>'
+  ].join("\n");
+}
+function makePhpBackend(){
+  return [
+    '<?php',
+    'header("Content-Type: application/json; charset=utf-8");',
+    '$input = json_decode(file_get_contents("php://input"), true) ?? [];',
+    '$token = $input["token"] ?? "";',
+    'if (!is_string($token) || $token === "") { http_response_code(400); echo json_encode(["success"=>false,"code"=>"missing_token"]); exit; }',
+    '$siteKey = getenv("VIN_CAPTCHA_SITE_KEY") ?: "";',
+    '$secretKey = getenv("VIN_CAPTCHA_SECRET_KEY") ?: "";',
+    'if ($siteKey === "" || $secretKey === "") { http_response_code(500); echo json_encode(["success"=>false,"code"=>"captcha_not_configured"]); exit; }',
+    '$payload = json_encode(["site_key"=>$siteKey,"secret_key"=>$secretKey,"verification_token"=>$token]);',
+    '$ch = curl_init(' + jsString(VERIFY_URL) + ');',
+    'curl_setopt_array($ch, [CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$payload,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>["Content-Type: application/json"],CURLOPT_TIMEOUT=>8]);',
+    '$raw = curl_exec($ch); $status = curl_getinfo($ch, CURLINFO_HTTP_CODE); $networkError = curl_errno($ch); curl_close($ch);',
+    '$result = is_string($raw) ? json_decode($raw, true) : null;',
+    'if ($networkError || $status < 200 || $status >= 300 || ($result["success"] ?? false) !== true) { http_response_code(400); echo json_encode(["success"=>false,"code"=>$result["code"] ?? "verification_failed"]); exit; }',
+    '// Perform your protected server-side action here, after successful verification.',
+    'echo json_encode(["success"=>true]);'
+  ].join("\n");
+}
+function packageReadme(url,platform){
+  const labels={"html-node":"HTML + Node.js / Express","react-node":"React + Vite + Node.js / Express","nextjs":"Next.js App Router","php":"HTML + PHP"};
+  return [
+    "# BeeCaptcha integration package",
+    "",
+    "Website: " + url,
+    "BeeCaptcha website: " + siteName,
+    "Site Key: " + siteKey,
+    "Platform: " + (labels[platform]||platform),
+    "",
+    "## Before you deploy",
+    "1. Confirm that the exact hostname is listed in BeeCaptcha Website Settings under Allowed Domains.",
+    "2. Copy your Secret Key from the BeeCaptcha dashboard and store it only in your server environment.",
+    "3. Never commit a real secret key or send it to browser code.",
+    "4. Run the verification endpoint before you process login, signup, comments, contact forms, or checkout.",
+    "",
+    "## Included files",
+    ...({"html-node":["- public/index.html: ready-to-run sample page and CAPTCHA widget.","- server.js: Express endpoint that calls the BeeCaptcha verification API.","- package.json: Node dependencies and start script.","- .env.example: public Site Key and a placeholder for your Secret Key."],
+      "react-node":["- src/App.jsx and src/main.jsx: runnable React/Vite sample form.","- server.js: Express verification API and production static-file server.","- vite.config.js: development proxy for the verification endpoint.","- package.json: React, Vite, Express, and dotenv dependencies.","- .env.example: public Site Key and a placeholder for your Secret Key."],
+      "nextjs":["- components/VinCaptchaForm.tsx: client form and widget integration.","- app/api/verify-captcha/route.ts: Next.js server-side verification route.","- examples/page.example.tsx: a small example showing how to render the component.","- .env.example: server environment-variable template."],
+      "php":["- index.html: sample form with the BeeCaptcha widget.","- verify-captcha.php: backend verifier using PHP cURL.","- .env.example: environment-variable template."]})[platform] || [],
+    "",
+    "## Setup",
+    ...({"html-node":["1. Copy .env.example to .env and set VIN_CAPTCHA_SECRET_KEY to your real Site Secret from BeeCaptcha.","2. Run npm install, then npm start.","3. Open http://localhost:3000 for a local smoke test; register your production hostname in BeeCaptcha before deploying."],
+      "react-node":["1. Copy .env.example to .env and set VIN_CAPTCHA_SECRET_KEY to your real Site Secret from BeeCaptcha.","2. Run npm install and npm run dev for local development.","3. For production run npm run build, then npm start. Configure the host to use the same environment variables."],
+      "nextjs":["1. Copy the example files into the matching paths of your existing Next.js app; merge rather than overwrite existing routes or pages.","2. Copy .env.example to .env.local and set VIN_CAPTCHA_SECRET_KEY to your real Site Secret from BeeCaptcha.","3. Render VinCaptchaForm from a client-compatible page, then test the API route in your environment."],
+      "php":["1. Put index.html and verify-captcha.php in your PHP web root (or rename index.html to match your site).","2. Configure VIN_CAPTCHA_SITE_KEY and VIN_CAPTCHA_SECRET_KEY in your PHP hosting environment; do not publish the secret.","3. Ensure PHP cURL is enabled and test over HTTPS."]})[platform] || [],
+    "",
+    "## Important",
+    "This is a generated starter package, not an automatic deployment into your existing website. Connect the successful verification branch to your real protected server action and add suitable rate limiting, logging, and CSRF protections for your app.",
+    ""
+  ].join("\n");
+}
+async function generatePackage(){
+  const input=$("#siteUrl");
+  const status=$("#siteUrlStatus");
+  const raw=(input?.value||"").trim();
+  if(!siteId||!siteKey||siteKey==="YOUR_SITE_KEY"){
+    status.textContent="Open Integration from a website you own in the BeeCaptcha dashboard first.";
+    status.style.color="#a53232";setPackageStatus("A registered website is required before a package can be generated.",true);return;
+  }
+  let parsed;
+  try{parsed=new URL(raw);}catch{status.textContent="Enter a complete URL, for example https://example.com";status.style.color="#a53232";setPackageStatus("Please enter a valid website URL.",true);return;}
+  if(!["https:","http:"].includes(parsed.protocol)||!parsed.hostname||parsed.username||parsed.password){
+    status.textContent="Use a valid HTTP or HTTPS website URL without embedded credentials.";status.style.color="#a53232";setPackageStatus("Invalid website URL.",true);return;
+  }
+  if(!isAllowedWebsiteHost(parsed.hostname)){
+    status.textContent="This hostname is not in the site's Allowed Domains list. Add it in Website Settings first.";status.style.color="#a53232";
+    setPackageStatus("Package not generated: " + parsed.hostname + " is not an allowed domain for this BeeCaptcha website.",true);return;
+  }
+  status.style.color="";status.textContent="Domain confirmed against this site's Allowed Domains list.";
+  if(typeof JSZip==="undefined"){setPackageStatus("The ZIP generator did not load. Refresh this page and try again.",true);return;}
+  const platform=$("#platform").value;
+  const zip=new JSZip();
+  const envExample="VIN_CAPTCHA_SITE_KEY="+siteKey+"\nVIN_CAPTCHA_SECRET_KEY=replace_with_your_server_only_secret\n";
+  zip.file("README.md",packageReadme(parsed.origin,platform));
+  zip.file("vin-captcha-config.json",JSON.stringify({product:"BeeCaptcha",website_name:siteName,website_url:parsed.origin,site_key:siteKey,platform},null,2));
+  zip.file(".env.example",envExample);
+  if(platform==="html-node"){
+    zip.file("public/index.html",makeHtmlApp());
+    zip.file("server.js",makeNodeServer());
+    zip.file("package.json",JSON.stringify({name:"beecaptcha-integration",private:true,type:"module",scripts:{start:"node server.js"},dependencies:{dotenv:"^16.4.5",express:"^4.21.2"}},null,2));
+  }else if(platform==="react-node"){
+    zip.file("index.html",'<div id="root"></div><script type="module" src="/src/main.jsx"></script>');
+    zip.file("src/main.jsx",'import React from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App.jsx";\ncreateRoot(document.getElementById("root")).render(<App />);\n');
+    zip.file("src/App.jsx",makeReactApp());
+    zip.file("server.js",makeNodeServer().replace('app.use(express.static("public"));','app.use(express.static("dist"));'));
+    zip.file("vite.config.js",'import { defineConfig } from "vite";\nexport default defineConfig({server:{proxy:{"/api":"http://localhost:3001"}}});\n');
+    zip.file("package.json",JSON.stringify({name:"beecaptcha-react-integration",private:true,type:"module",scripts:{dev:"concurrently -k \"vite\" \"npm:dev:server\"", "dev:server":"node server.js",build:"vite build",start:"node server.js"},dependencies:{dotenv:"^16.4.5",express:"^4.21.2",react:"^18.3.1","react-dom":"^18.3.1"},devDependencies:{vite:"^6.0.0",concurrently:"^9.1.0"}},null,2));
+  }else if(platform==="nextjs"){
+    zip.file("components/VinCaptchaForm.tsx",makeNextComponent());
+    zip.file("app/api/verify-captcha/route.ts",makeNextRoute());
+    zip.file("examples/page.example.tsx",'import VinCaptchaForm from "../components/VinCaptchaForm";\n\nexport default function ExamplePage() {\n  return <VinCaptchaForm />;\n}\n');
+    zip.file(".env.local.example",envExample);
+  }else if(platform==="php"){
+    zip.file("index.html",makePhpPage());
+    zip.file("verify-captcha.php",makePhpBackend());
+  }
+  const button=$("#generatePackage");const old=button.textContent;button.disabled=true;button.textContent="Building ZIP…";
+  try{
+    const blob=await zip.generateAsync({type:"blob"});
+    const objectUrl=URL.createObjectURL(blob);
+    const link=document.createElement("a");
+    const safeName=(siteName||"website").toLowerCase().replace(/[^a-z0-9-]+/g,"-").replace(/^-|-$/g,"")||"website";
+    link.href=objectUrl;link.download="beecaptcha-"+safeName+"-"+platform+".zip";
+    document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),1500);
+    setPackageStatus("ZIP generated for "+parsed.origin+". Review README.md, configure your server-only Secret Key, and test before enabling the protected action.");
+  }catch(error){
+    setPackageStatus("Could not generate the ZIP. Refresh and try again.",true);
+  }finally{button.disabled=false;button.textContent=old;}
+}
+
 async function init(){
   const user=await requireUser();if(!user)return;wireLogout();
   if(siteId){
@@ -327,6 +663,10 @@ async function init(){
     else{siteKey=r.data.site_key;siteName=r.data.name;siteStatus=r.data.status;siteAllowedDomains=r.data.allowed_domains||[];$("#backSite").href="website.html?id="+encodeURIComponent(r.data.id);$("#integrationSiteName").textContent=r.data.name;}
   }else{siteKey=params.get("site_key")||"YOUR_SITE_KEY";}
   renderSnippets();
+  const firstDomain=siteAllowedDomains.find(value=>!String(value||"").trim().startsWith("*."));
+  if(firstDomain)$("#siteUrl").value="https://"+normalizeDomain(firstDomain);
+  $("#siteUrl").addEventListener("input",()=>{const value=$("#siteUrl").value.trim();if(!value){$("#siteUrlStatus").textContent="Use a domain already registered in Website Settings.";return;}try{const parsed=new URL(value);const ok=isAllowedWebsiteHost(parsed.hostname);$("#siteUrlStatus").textContent=ok?"Domain confirmed against this site’s Allowed Domains list.":"This hostname is not allowed yet. Add it in Website Settings first.";$("#siteUrlStatus").style.color=ok?"":"#a53232";}catch{$("#siteUrlStatus").textContent="Enter a complete URL such as https://example.com";$("#siteUrlStatus").style.color="#a53232";}});
+  $("#generatePackage").addEventListener("click",generatePackage);
   renderDemo();
 }
 function renderDemo(){
