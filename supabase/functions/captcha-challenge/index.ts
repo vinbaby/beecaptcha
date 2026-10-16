@@ -10,14 +10,18 @@ const token=()=>{const b=new Uint8Array(32);crypto.getRandomValues(b);return bto
 const host=(v:string)=>{const raw=String(v??"").trim().toLowerCase();if(!raw)return "";try{const u=new URL(raw.includes("://")?raw:"https://"+raw);return u.hostname.toLowerCase()+(u.port?":"+u.port:"")}catch{let head=raw;if(head.startsWith("https://"))head=head.slice(8);else if(head.startsWith("http://"))head=head.slice(7);head=head.split("/")[0].split("?")[0].split("#")[0];while(head.endsWith("."))head=head.slice(0,-1);return head}};
 const allowed=(o:string|null,d:string[])=>{if(!o)return true;const h=host(o);if(!h)return false;return d.some(x=>{const y=host(x);if(!y)return false;if(y.startsWith("*.")){const suffix=y.slice(2);return h!==suffix&&h.endsWith("."+suffix)}return y===h})};
 const shuffle=<T>(a:T[])=>{const x=[...a];for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x};
-const makeImage=async()=>{
+const makeImage=async(siteId:string)=>{
   const {data:assets,error}=await db.from("captcha_assets").select("id,label,image_url").eq("active",true).eq("kind","image");
   if(error||!assets)throw new Error("asset_pool_unavailable");
   const buckets=new Map<string,any[]>();
   for(const a of assets){const bucket=buckets.get(a.label)||[];bucket.push(a);buckets.set(a.label,bucket)}
   const eligible=[...buckets.entries()].filter(([label,items])=>Boolean(label)&&items.length>=4);
   if(eligible.length<4)throw new Error("asset_pool_unavailable");
-  const [target,pp]=eligible[Math.floor(Math.random()*eligible.length)];
+  const {data:recentRows}=await db.from("captcha_challenges").select("challenge_data").eq("site_id",siteId).eq("challenge_type","image_select_v1").order("created_at",{ascending:false}).limit(2);
+  const recentTargets=(recentRows||[]).map((row:any)=>String(row.challenge_data?.prompt||"").replace(/^Select all images containing a\\s+/i,"").replace(/[.?!]+$/,"").replaceAll(" ","_")).filter(Boolean);
+  const freshEligible=eligible.filter(([label])=>!recentTargets.includes(label));
+  const targetPool=freshEligible.length?freshEligible:eligible;
+  const [target,pp]=targetPool[Math.floor(Math.random()*targetPool.length)];
   const np=assets.filter((a:any)=>a.label!==target);
   const positives=shuffle(pp).slice(0,Math.min(3,pp.length));
   const negatives=shuffle(np).slice(0,9-positives.length);
@@ -67,7 +71,7 @@ const renderConnectBoard=(data:any)=>{
 
 async function serveImageProxy(req:Request){
  const origin=req.headers.get("origin"),u=new URL(req.url),ident=u.searchParams.get("image")||"",dot=ident.lastIndexOf(".");
- const fail=(status:number,code:string)=>new Response(code,{status,headers:{"content-type":"text/plain; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"}});
+ const fail=(status:number,code:string)=>new Response(code,{status,headers:{"content-type":"text/plain; charset=utf-8","cache-control":"no-store","access-control-allow-origin":"*","cross-origin-resource-policy":"cross-origin","x-content-type-options":"nosniff"}});
  if(dot<1)return fail(404,"not_found");
  const challengeId=ident.slice(0,dot),assetId=ident.slice(dot+1);
  if(!/^[0-9a-f-]{36}$/i.test(challengeId)||!/^(?:[0-9a-f-]{36}|drag-board|drag-piece|connect-board)$/i.test(assetId))return fail(404,"not_found");
@@ -83,9 +87,22 @@ async function serveImageProxy(req:Request){
  if(!item||typeof item.image_url!=="string")return fail(404,"asset_not_found");
  let source:URL;try{source=new URL(item.image_url)}catch{return fail(502,"invalid_source")}
  if(source.protocol!=="https:"||source.hostname!=="commons.wikimedia.org"||!source.pathname.startsWith("/wiki/Special:FilePath/"))return fail(502,"source_not_allowed");
- let upstream:Response;try{upstream=await fetch(source.toString(),{redirect:"follow",headers:{accept:"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)","api-user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)"}})}catch{return fail(502,"image_fetch_failed")}
+ const fileName=(()=>{try{return decodeURIComponent(source.pathname.slice("/wiki/Special:FilePath/".length))}catch{return ""}})();
+ if(!fileName||fileName.includes("/")||fileName.includes("\\\\"))return fail(502,"invalid_source");
+ const mediaHeaders={accept:"application/json, image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)","api-user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)"};
+ const apiUrl=new URL("https://commons.wikimedia.org/w/api.php");
+ apiUrl.searchParams.set("action","query");apiUrl.searchParams.set("format","json");apiUrl.searchParams.set("prop","imageinfo");apiUrl.searchParams.set("iiprop","url");apiUrl.searchParams.set("iiurlwidth","640");apiUrl.searchParams.set("titles","File:"+fileName);
+ let apiResponse:Response;try{apiResponse=await fetch(apiUrl.toString(),{headers:mediaHeaders,redirect:"follow"})}catch{return fail(502,"image_lookup_failed")}
+ if(!apiResponse.ok)return fail(502,"image_lookup_error");
+ let apiData:any;try{apiData=await apiResponse.json()}catch{return fail(502,"image_lookup_invalid_json")}
+ const pages=Object.values(apiData?.query?.pages||{}) as any[];
+ const info=pages[0]?.imageinfo?.[0];
+ if(!info)return fail(404,"source_not_found");
+ let mediaUrl:URL;try{mediaUrl=new URL(String(info.thumburl||info.url||""))}catch{return fail(502,"invalid_media_url")}
+ if(mediaUrl.protocol!=="https:"||mediaUrl.hostname!=="upload.wikimedia.org")return fail(502,"media_host_not_allowed");
+ let upstream:Response;try{upstream=await fetch(mediaUrl.toString(),{redirect:"follow",headers:mediaHeaders})}catch{return fail(502,"image_fetch_failed")}
  if(!upstream.ok)return fail(502,"image_upstream_error");
- try{const finalHost=new URL(upstream.url).hostname;if(finalHost!=="commons.wikimedia.org"&&finalHost!=="upload.wikimedia.org")return fail(502,"image_redirect_not_allowed")}catch{return fail(502,"invalid_redirect")}
+ try{const finalHost=new URL(upstream.url).hostname;if(finalHost!=="upload.wikimedia.org")return fail(502,"image_redirect_not_allowed")}catch{return fail(502,"invalid_redirect")}
  const contentType=upstream.headers.get("content-type")||"";
  if(!/^image\/(jpeg|png|webp|gif|avif|svg\+xml)(\s*;|$)/i.test(contentType))return fail(502,"invalid_image_type");
  const length=Number(upstream.headers.get("content-length")||0);if(length>5000000)return fail(413,"image_too_large");
@@ -93,7 +110,7 @@ async function serveImageProxy(req:Request){
  return new Response(bytes,{status:200,headers:{"content-type":contentType,"content-length":String(bytes.byteLength),"cache-control":"public, max-age=60","access-control-allow-origin":"*","cross-origin-resource-policy":"cross-origin","x-content-type-options":"nosniff"}});
 }
 
-Deno.serve(async req=>{const origin=req.headers.get("origin");if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":origin??"","access-control-allow-methods":"POST, GET, OPTIONS","access-control-allow-headers":"content-type"}});if(req.method==="GET")return await serveImageProxy(req);if(req.method!=="POST")return out({success:false,code:"method_not_allowed"},405,origin);try{const b=await req.json(),siteKey=typeof b.site_key==="string"?b.site_key.trim():"";if(!siteKey)return out({success:false,code:"invalid_site_key"},400,origin);const {data:site,error:se}=await db.from("sites").select("id,status,captcha_type,allowed_domains").eq("site_key",siteKey).maybeSingle();if(se||!site||site.status!=="active")return out({success:false,code:"invalid_site_key"},401,origin);if(!allowed(origin,site.allowed_domains??[]))return out({success:false,code:"domain_not_allowed",received_domain:origin?host(origin):null},403,origin);const ip=(req.headers.get("cf-connecting-ip")??req.headers.get("x-real-ip")??req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim()??"unknown").slice(0,128),ua=req.headers.get("user-agent")??"",ih=await hash(ip+"|"+ADMIN_KEY),uh=ua?await hash(ua+"|"+ADMIN_KEY):null;const {data:reservation,error:rateError}=await db.rpc("vin_reserve_challenge_rate_limit",{p_site_id:site.id,p_request_ip_hash:ih,p_now:new Date().toISOString()});if(rateError)return out({success:false,code:"rate_limit_unavailable"},503,origin);const rate=Array.isArray(reservation)?reservation[0]:reservation;if(rate?.allowed!==true)return out({success:false,code:"rate_limited",retry_after:Math.max(1,Number(rate?.retry_after)||60)},429,origin);let g:any;if(site.captcha_type==="visual_select_v1"||site.captcha_type==="math_v1")return out({success:false,code:"captcha_type_deprecated",message:"This challenge type has been retired because it is too easy to automate. Switch the site to Image Select."},409,origin);if(site.captcha_type==="image_select_v1")g=await makeImage();else if(site.captcha_type==="drag_drop_v1")g=makeDrag();else if(site.captcha_type==="connect_dots_v1")g=makeConnect();else return out({success:false,code:"captcha_type_unavailable"},409,origin);const id=crypto.randomUUID(),t=token(),expires=new Date(Date.now()+120000).toISOString();const storedData=g.data;let clientData:any;
+Deno.serve(async req=>{const origin=req.headers.get("origin");if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":origin??"","access-control-allow-methods":"POST, GET, OPTIONS","access-control-allow-headers":"content-type"}});if(req.method==="GET")return await serveImageProxy(req);if(req.method!=="POST")return out({success:false,code:"method_not_allowed"},405,origin);try{const b=await req.json(),siteKey=typeof b.site_key==="string"?b.site_key.trim():"";if(!siteKey)return out({success:false,code:"invalid_site_key"},400,origin);const {data:site,error:se}=await db.from("sites").select("id,status,captcha_type,allowed_domains").eq("site_key",siteKey).maybeSingle();if(se||!site||site.status!=="active")return out({success:false,code:"invalid_site_key"},401,origin);if(!allowed(origin,site.allowed_domains??[]))return out({success:false,code:"domain_not_allowed",received_domain:origin?host(origin):null},403,origin);const ip=(req.headers.get("cf-connecting-ip")??req.headers.get("x-real-ip")??req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim()??"unknown").slice(0,128),ua=req.headers.get("user-agent")??"",ih=await hash(ip+"|"+ADMIN_KEY),uh=ua?await hash(ua+"|"+ADMIN_KEY):null;const {data:reservation,error:rateError}=await db.rpc("vin_reserve_challenge_rate_limit",{p_site_id:site.id,p_request_ip_hash:ih,p_now:new Date().toISOString()});if(rateError)return out({success:false,code:"rate_limit_unavailable"},503,origin);const rate=Array.isArray(reservation)?reservation[0]:reservation;if(rate?.allowed!==true)return out({success:false,code:"rate_limited",retry_after:Math.max(1,Number(rate?.retry_after)||60)},429,origin);let g:any;if(site.captcha_type==="visual_select_v1"||site.captcha_type==="math_v1")return out({success:false,code:"captcha_type_deprecated",message:"This challenge type has been retired because it is too easy to automate. Switch the site to Image Select."},409,origin);if(site.captcha_type==="image_select_v1")g=await makeImage(site.id);else if(site.captcha_type==="drag_drop_v1")g=makeDrag();else if(site.captcha_type==="connect_dots_v1")g=makeConnect();else return out({success:false,code:"captcha_type_unavailable"},409,origin);const id=crypto.randomUUID(),t=token(),expires=new Date(Date.now()+120000).toISOString();const storedData=g.data;let clientData:any;
 if(g.type==="image_select_v1"){
  clientData={...g.data,items:g.data.items.map((item:any)=>({id:item.id,image_url:SUPABASE_URL+"/functions/v1/captcha-challenge?image="+encodeURIComponent(id+"."+item.id)}))};
 }else if(g.type==="drag_drop_v1"){
