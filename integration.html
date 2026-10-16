@@ -43,6 +43,15 @@ function render(){
   description.textContent="This runs the real challenge and verifies the selected answer on the server using your signed-in dashboard session. Production websites must still validate tokens with captcha-verify and their server-only Secret Key.";
   const widget=document.createElement("vin-captcha");widget.dataset.vinCaptcha=siteKey;widget.className="integration-live-widget";
   const status=document.createElement("p");status.className="integration-live-status";status.textContent="Loading the live widget…";
+  widget.addEventListener("vin-captcha-start",()=>{
+    status.textContent="Loading a fresh CAPTCHA challenge…";
+  });
+  widget.addEventListener("vin-captcha-challenge",()=>{
+    status.textContent="New challenge loaded. Complete it to test server-side verification.";
+  });
+  widget.addEventListener("vin-captcha-error",(event)=>{
+    status.textContent="CAPTCHA could not load: "+String(event.detail?.code||"unknown")+". Try refreshing the challenge.";
+  });
   widget.addEventListener("vin-captcha-verified",async(event)=>{
     status.textContent="Checking the answer on the BeeCaptcha server…";
     try{
