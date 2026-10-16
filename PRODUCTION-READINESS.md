@@ -19,12 +19,12 @@ Supabase project: `zjghuovefnbuliovttqa`
 - Five incorrect answers consume the challenge. Empty answers are treated as wrong answers.
 - The internal verification RPC is executable only by `service_role`, not by `anon` or `authenticated`.
 - Challenge request quotas are reserved atomically in Postgres: 20 per site/IP per minute and 120 per site per minute. Only an IP hash is stored in the limiter table.
-- The limiter uses Cloudflare/proxy IP headers first. Verify which header is populated in production logs before release.
+- The limiter prefers Cloudflare/proxy IP headers and hashes the resulting value. Verify a trustworthy client IP header in deployed logs; if the hosting path does not provide one, do not rely on the per-IP quota until corrected.
 - New sites default to Image Select. Existing test sites were migrated to it.
 
 ## Known gaps — block the public paid launch until resolved
 
-1. **Image pool is still small.** There are 20 active images: five each for bicycle, bus, car, and traffic light. They are pilot assets from Unsplash URLs. Expand and quality-review the pool substantially (target at least 30 distinct images per class), verify every URL, avoid ambiguous multi-object tiles and preserve license/source metadata. Prefer first-party hosting or an approved CDN over runtime dependence on a third party.
+1. **Image pool is still very small.** The active pilot pool currently has 16 distinct Wikimedia Commons images: four per class (bicycle, bus, car, and traffic light), each recorded as CC0 1.0 with source page/author metadata. The prior Unsplash rows have been disabled because the Unsplash license restricts compiling images to replicate a similar or competing service. Expand and visually quality-review the pool substantially (target at least 30 distinct images per class), verify each image loads and depicts the label unambiguously, review trademarks/privacy risks, then preferably mirror licensed files to first-party storage with provenance retained. Do not launch publicly based on this four-per-class pilot set.
 2. **No AI vision benchmark yet.** Bot Lab's built-in no-AI robot can detect deterministic metadata weaknesses and run server-side security checks, but it does not test an AI vision model. Benchmark a documented sample of challenges against at least one representative vision-capable automated solver; report sample size and solve rate. Do not infer resistance from “not measured”.
 3. **Human usability is not measured.** Test across mobile and desktop with real users. Release target: at least 95% human completion within two attempts, while recording median completion time and accessibility failures. If the target is missed, improve the UX before launch.
 4. **Run a deployed end-to-end test.** Confirm challenge creation, correct and incorrect answers, expiry, replay, rate limiting, server verification, domain allowlist enforcement, and production customer-backend integration from a real browser session.
