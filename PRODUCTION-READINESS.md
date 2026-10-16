@@ -6,8 +6,8 @@
 
 Supabase project: `zjghuovefnbuliovttqa`
 
-- `captcha-challenge` v15: ACTIVE; supports `image_select_v1`, `drag_drop_v1`, and `connect_dots_v1`. The image proxy URL-constructor shadowing bug is fixed (the Supabase base URL is now `SUPABASE_URL`, leaving the native `URL` constructor available), and outbound Wikimedia requests use a descriptive BeeCaptcha user agent. It retains host restrictions and returns the actual edge list to the Connect Dots widget.
-- `widget` v11: ACTIVE; implements Image Select, Drag & Drop, and Connect Dots interactions and emits a short-lived verification token for server-side checking.
+- `captcha-challenge` v16: ACTIVE; supports `image_select_v1`, `drag_drop_v1`, and `connect_dots_v1`. The proxy now resolves Wikimedia Commons file names through the MediaWiki imageinfo API to obtain a 640px thumbnail URL on `upload.wikimedia.org`, while retaining hostname restrictions and response-size checks. Image Select avoids repeating the last two target categories when other eligible categories exist.
+- `widget` v12: ACTIVE; implements Image Select, Drag & Drop, and Connect Dots interactions and emits a short-lived verification token for server-side checking. Image Select loads tiles with a 220ms stagger, retries failed images twice, and disables verification until all tiles load. “New challenge” now immediately requests a fresh challenge instead of only returning to the initial button.
 - `captcha-verify` v5: ACTIVE; validates the site secret, challenge answer and token through the database verification RPC.
 - `captcha-test-verify` v1: authenticated live answer check for the dashboard.
 - `captcha-security-test` v1: authenticated server-side fixture checks for correct answer, one-time use, invalid tokens, attempt limits, and expiry.
@@ -17,8 +17,8 @@ Supabase project: `zjghuovefnbuliovttqa`
 
 - The Postgres verification RPC regression suite previously passed for correct-answer acceptance once, replay rejection, wrong-token rejection without consuming a challenge, five-attempt lockout, and expiry rejection.
 - The temporary regression rows were removed; a follow-up query reported zero leftover rows.
-- `captcha-challenge` v15 and `widget` v11 deployments returned ACTIVE. Source checks confirmed that the image proxy no longer shadows the built-in `URL` constructor, the upstream request identifies BeeCaptcha, the widget implements the three supported challenge types, and the challenge API passes Connect Dots edges to the browser. This confirms deployment/source correctness but is not a substitute for an actual browser image-load test.
-- A full live browser end-to-end run was not completed in this update. Source-image proxy behavior against every Wikimedia file, human completion rate, and statistical AI solve rate also remain unverified release-gate items.
+- `captcha-challenge` v16 and `widget` v12 deployments returned ACTIVE. Source checks confirmed the MediaWiki thumbnail lookup, two-category anti-repeat logic, staggered image retries, wait-for-all-images behavior, immediate refresh, and Connect Dots edge payload. These checks confirm deployed source, not the successful loading of all nine images in a real browser.
+- A full live browser end-to-end run was not completed in this update. In particular, verify that all nine Wikimedia thumbnails load in the production browser after this change; if any fail, use the new in-widget status and refresh behavior to identify the remaining failures. Human completion rate and statistical AI solve rate also remain unverified release-gate items.
 
 ## Controls now implemented
 
@@ -42,7 +42,7 @@ Supabase project: `zjghuovefnbuliovttqa`
 
 ## Bot Lab
 
-Open `https://beecaptcha.vercel.app/bot-lab.html` after signing in. A Bot Lab shortcut is also now included in the sidebars of the dashboard and management pages. Select an owned active Image Select site and run the tests. The built-in browser solver uses COCO-SSD lite MobileNet v2 against the currently supported pilot object classes. It also runs an authenticated server-side fixture suite and one real deliberately-wrong-answer test. The live AI solve rate and server-security score are separate metrics; a green server-security result does not prove that other AI systems cannot solve the image challenge. Results from a real authenticated browser session still need to be collected and reviewed before any paid launch.
+Open `https://beecaptcha.vercel.app/bot-lab.html` after signing in. The Integration page now also has a direct “Test AI robot” link, and `bot-lab.html?site_id=<site UUID>` preselects the chosen website. A Bot Lab shortcut is included in the sidebars of the dashboard and management pages. Select an owned active Image Select site and run the tests. The built-in browser solver uses COCO-SSD lite MobileNet v2 against the currently supported pilot object classes. It also runs an authenticated server-side fixture suite and one real deliberately-wrong-answer test. The live AI solve rate and server-security score are separate metrics; a green server-security result does not prove that other AI systems cannot solve the image challenge. Results from a real authenticated browser session still need to be collected and reviewed before any paid launch.
 
 ## Hosting and secrets
 
