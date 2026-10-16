@@ -69,50 +69,104 @@ const renderConnectBoard=(data:any)=>{
  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"><rect width="100%" height="100%" rx="16" fill="#f8fafc"/>'+parts.join("")+'</svg>';
 };
 
+const resolvedImageCache = new Map<string,{expires:number,urls:string[]}>();
+async function imageCandidates(imageUrl:string){
+ const cached=resolvedImageCache.get(imageUrl);
+ if(cached&&cached.expires>Date.now())return cached.urls;
+ const urls:string[]=[];
+ try{
+  const original=new URL(imageUrl);
+  if(original.protocol==="https:"&&original.hostname==="commons.wikimedia.org"&&original.pathname.startsWith("/wiki/Special:FilePath/")){
+   let filename=decodeURIComponent(original.pathname.slice("/wiki/Special:FilePath/".length));
+   filename=filename.replaceAll("_"," ");
+   const api=new URL("https://commons.wikimedia.org/w/api.php");
+   api.searchParams.set("action","query");
+   api.searchParams.set("format","json");
+   api.searchParams.set("formatversion","2");
+   api.searchParams.set("prop","imageinfo");
+   api.searchParams.set("iiprop","url");
+   api.searchParams.set("iiurlwidth","640");
+   api.searchParams.set("titles","File:"+filename);
+   const response=await fetch(api.toString(),{redirect:"follow",headers:{accept:"application/json","user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)","api-user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)"},signal:AbortSignal.timeout(8000)});
+   if(response.ok){
+    const payload=await response.json();
+    const page=payload?.query?.pages?.[0];
+    const info=page?.imageinfo?.[0];
+    const thumbnail=typeof info?.thumburl==="string"?info.thumburl:(typeof info?.url==="string"?info.url:"");
+    if(thumbnail){
+     const thumb=new URL(thumbnail);
+     if(thumb.protocol==="https:"&&(thumb.hostname==="upload.wikimedia.org"||thumb.hostname==="commons.wikimedia.org"))urls.push(thumb.toString());
+    }
+   }else{
+    console.warn("captcha_image_metadata_http_error",response.status,original.pathname);
+   }
+  }
+ }catch(error){
+  console.warn("captcha_image_metadata_lookup_failed",String(error));
+ }
+ if(!urls.includes(imageUrl))urls.push(imageUrl);
+ resolvedImageCache.set(imageUrl,{expires:Date.now()+(urls.length>1?24*60*60*1000:60*1000),urls});
+ return urls;
+}
+
 async function serveImageProxy(req:Request){
- const origin=req.headers.get("origin"),u=new URL(req.url),ident=u.searchParams.get("image")||"",dot=ident.lastIndexOf(".");
- const fail=(status:number,code:string)=>new Response(code,{status,headers:{"content-type":"text/plain; charset=utf-8","cache-control":"no-store","access-control-allow-origin":"*","cross-origin-resource-policy":"cross-origin","x-content-type-options":"nosniff"}});
- if(dot<1)return fail(404,"not_found");
- const challengeId=ident.slice(0,dot),assetId=ident.slice(dot+1);
- if(!/^[0-9a-f-]{36}$/i.test(challengeId)||!/^(?:[0-9a-f-]{36}|drag-board|drag-piece|connect-board)$/i.test(assetId))return fail(404,"not_found");
- const {data:challenge,error:ce}=await db.from("captcha_challenges").select("id,site_id,challenge_data,expires_at,challenge_type").eq("id",challengeId).maybeSingle();
- if(ce||!challenge||new Date(challenge.expires_at).getTime()<=Date.now())return fail(404,"challenge_expired");
- const {data:site,error:se}=await db.from("sites").select("status,allowed_domains").eq("id",challenge.site_id).maybeSingle();
- if(se||!site||site.status!=="active"||(origin&&!allowed(origin,site.allowed_domains??[])))return fail(403,"domain_not_allowed");
- if(challenge.challenge_type==="drag_drop_v1"&&(assetId==="drag-board"||assetId==="drag-piece"))return svgReply(assetId==="drag-board"?renderDragBoard(challenge.challenge_data):renderDragPiece(challenge.challenge_data));
- if(challenge.challenge_type==="connect_dots_v1"&&assetId==="connect-board")return svgReply(renderConnectBoard(challenge.challenge_data));
- if(challenge.challenge_type!=="image_select_v1")return fail(404,"asset_not_found");
- const items=Array.isArray(challenge.challenge_data?.items)?challenge.challenge_data.items:[];
- const item=items.find((x:any)=>String(x.id)===assetId);
- if(!item||typeof item.image_url!=="string")return fail(404,"asset_not_found");
- let source:URL;try{source=new URL(item.image_url)}catch{return fail(502,"invalid_source")}
- if(source.protocol!=="https:"||source.hostname!=="commons.wikimedia.org"||!source.pathname.startsWith("/wiki/Special:FilePath/"))return fail(502,"source_not_allowed");
- const fileName=(()=>{try{return decodeURIComponent(source.pathname.slice("/wiki/Special:FilePath/".length))}catch{return ""}})();
- if(!fileName||fileName.includes("/")||fileName.includes("\\\\"))return fail(502,"invalid_source");
- const mediaHeaders={accept:"application/json, image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)","api-user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)"};
- const apiUrl=new URL("https://commons.wikimedia.org/w/api.php");
- apiUrl.searchParams.set("action","query");apiUrl.searchParams.set("format","json");apiUrl.searchParams.set("prop","imageinfo");apiUrl.searchParams.set("iiprop","url");apiUrl.searchParams.set("iiurlwidth","640");apiUrl.searchParams.set("titles","File:"+fileName);
- let apiResponse:Response;try{apiResponse=await fetch(apiUrl.toString(),{headers:mediaHeaders,redirect:"follow"})}catch{return fail(502,"image_lookup_failed")}
- if(!apiResponse.ok)return fail(502,"image_lookup_error");
- let apiData:any;try{apiData=await apiResponse.json()}catch{return fail(502,"image_lookup_invalid_json")}
- const pages=Object.values(apiData?.query?.pages||{}) as any[];
- const info=pages[0]?.imageinfo?.[0];
- if(!info)return fail(404,"source_not_found");
- let mediaUrl:URL;try{mediaUrl=new URL(String(info.thumburl||info.url||""))}catch{return fail(502,"invalid_media_url")}
- if(mediaUrl.protocol!=="https:"||mediaUrl.hostname!=="upload.wikimedia.org")return fail(502,"media_host_not_allowed");
- let upstream:Response;try{upstream=await fetch(mediaUrl.toString(),{redirect:"follow",headers:mediaHeaders})}catch{return fail(502,"image_fetch_failed")}
- if(!upstream.ok)return fail(502,"image_upstream_error");
- try{const finalHost=new URL(upstream.url).hostname;if(finalHost!=="upload.wikimedia.org")return fail(502,"image_redirect_not_allowed")}catch{return fail(502,"invalid_redirect")}
- const contentType=upstream.headers.get("content-type")||"";
- if(!/^image\/(jpeg|png|webp|gif|avif|svg\+xml)(\s*;|$)/i.test(contentType))return fail(502,"invalid_image_type");
- const length=Number(upstream.headers.get("content-length")||0);if(length>5000000)return fail(413,"image_too_large");
- const bytes=await upstream.arrayBuffer();if(bytes.byteLength>5000000)return fail(413,"image_too_large");
- return new Response(bytes,{status:200,headers:{"content-type":contentType,"content-length":String(bytes.byteLength),"cache-control":"public, max-age=60","access-control-allow-origin":"*","cross-origin-resource-policy":"cross-origin","x-content-type-options":"nosniff"}});
+ const origin=req.headers.get("origin"),u=new URL(req.url),ident=u.searchParams.get("image")||"",publicAssetId=u.searchParams.get("asset")||"",siteId=u.searchParams.get("site_id")||"";
+ const fail=(status:number,code:string)=>new Response(code,{status,headers:{"content-type":"text/plain; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"}});
+ let assetId="",imageUrl="",challengeId="";
+ if(publicAssetId){
+  if(!/^[0-9a-f-]{36}$/i.test(publicAssetId)||!/^[0-9a-f-]{36}$/i.test(siteId))return fail(404,"not_found");
+  const {data:site,error:siteError}=await db.from("sites").select("status,allowed_domains").eq("id",siteId).maybeSingle();
+  if(siteError||!site||site.status!=="active"||(origin&&!allowed(origin,site.allowed_domains??[])))return fail(403,"domain_not_allowed");
+  const {data:asset,error:assetError}=await db.from("captcha_assets").select("id,image_url").eq("id",publicAssetId).eq("active",true).eq("kind","image").maybeSingle();
+  if(assetError||!asset||typeof asset.image_url!=="string")return fail(404,"asset_not_found");
+  assetId=asset.id;imageUrl=asset.image_url;
+ }else{
+  const dot=ident.lastIndexOf(".");
+  if(dot<1)return fail(404,"not_found");
+  challengeId=ident.slice(0,dot);assetId=ident.slice(dot+1);
+  if(!/^[0-9a-f-]{36}$/i.test(challengeId)||!/^(?:[0-9a-f-]{36}|drag-board|drag-piece|connect-board)$/i.test(assetId))return fail(404,"not_found");
+  const {data:challenge,error:ce}=await db.from("captcha_challenges").select("id,site_id,challenge_data,expires_at,challenge_type").eq("id",challengeId).maybeSingle();
+  if(ce||!challenge||new Date(challenge.expires_at).getTime()<=Date.now())return fail(404,"challenge_expired");
+  const {data:site,error:se}=await db.from("sites").select("status,allowed_domains").eq("id",challenge.site_id).maybeSingle();
+  if(se||!site||site.status!=="active"||(origin&&!allowed(origin,site.allowed_domains??[])))return fail(403,"domain_not_allowed");
+  if(challenge.challenge_type==="drag_drop_v1"&&(assetId==="drag-board"||assetId==="drag-piece"))return svgReply(assetId==="drag-board"?renderDragBoard(challenge.challenge_data):renderDragPiece(challenge.challenge_data));
+  if(challenge.challenge_type==="connect_dots_v1"&&assetId==="connect-board")return svgReply(renderConnectBoard(challenge.challenge_data));
+  if(challenge.challenge_type!=="image_select_v1")return fail(404,"asset_not_found");
+  const items=Array.isArray(challenge.challenge_data?.items)?challenge.challenge_data.items:[];
+  const item=items.find((x:any)=>String(x.id)===assetId);
+  if(!item||typeof item.image_url!=="string")return fail(404,"asset_not_found");
+  imageUrl=item.image_url;
+ }
+ let candidates=await imageCandidates(imageUrl);
+ let lastFailure="image_upstream_error";
+ for(const candidate of candidates){
+  let source:URL;
+  try{source=new URL(candidate)}catch{lastFailure="invalid_source";continue}
+  if(source.protocol!=="https:"||(source.hostname!=="commons.wikimedia.org"&&source.hostname!=="upload.wikimedia.org")){lastFailure="source_not_allowed";continue}
+  let upstream:Response;
+  try{
+   upstream=await fetch(source.toString(),{redirect:"follow",headers:{accept:"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)","api-user-agent":"BeeCaptcha/1.0 (https://beecaptcha.vercel.app/)"},signal:AbortSignal.timeout(12000)});
+  }catch(error){lastFailure="image_fetch_failed";console.warn("captcha_image_fetch_failed",assetId,String(error));continue}
+  if(!upstream.ok){lastFailure="image_upstream_http_"+upstream.status;console.warn("captcha_image_upstream_non_ok",assetId,upstream.status,upstream.url);continue}
+  try{
+   const finalUrl=new URL(upstream.url);
+   if(finalUrl.protocol!=="https:"||(finalUrl.hostname!=="commons.wikimedia.org"&&finalUrl.hostname!=="upload.wikimedia.org")){lastFailure="invalid_redirect";console.warn("captcha_image_redirect_rejected",assetId,finalUrl.hostname);continue}
+  }catch{lastFailure="invalid_redirect";continue}
+  const contentType=upstream.headers.get("content-type")||"";
+  if(!/^image\/(jpeg|png|webp|gif|avif|svg\+xml)(\s*;|$)/i.test(contentType)){lastFailure="invalid_image_type";console.warn("captcha_image_bad_content_type",assetId,contentType,upstream.url);continue}
+  const length=Number(upstream.headers.get("content-length")||0);
+  if(length>5000000){lastFailure="image_too_large";continue}
+  const bytes=await upstream.arrayBuffer();
+  if(bytes.byteLength>5000000){lastFailure="image_too_large";continue}
+  resolvedImageCache.set(imageUrl,{expires:Date.now()+24*60*60*1000,urls:[candidate]});
+  return new Response(bytes,{status:200,headers:{"content-type":contentType,"content-length":String(bytes.byteLength),"cache-control":"public, max-age=86400, s-maxage=86400, immutable","access-control-allow-origin":"*","cross-origin-resource-policy":"cross-origin","x-content-type-options":"nosniff"}});
+ }
+ return fail(502,lastFailure);
 }
 
 Deno.serve(async req=>{const origin=req.headers.get("origin");if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":origin??"","access-control-allow-methods":"POST, GET, OPTIONS","access-control-allow-headers":"content-type"}});if(req.method==="GET")return await serveImageProxy(req);if(req.method!=="POST")return out({success:false,code:"method_not_allowed"},405,origin);try{const b=await req.json(),siteKey=typeof b.site_key==="string"?b.site_key.trim():"";if(!siteKey)return out({success:false,code:"invalid_site_key"},400,origin);const {data:site,error:se}=await db.from("sites").select("id,status,captcha_type,allowed_domains").eq("site_key",siteKey).maybeSingle();if(se||!site||site.status!=="active")return out({success:false,code:"invalid_site_key"},401,origin);if(!allowed(origin,site.allowed_domains??[]))return out({success:false,code:"domain_not_allowed",received_domain:origin?host(origin):null},403,origin);const ip=(req.headers.get("cf-connecting-ip")??req.headers.get("x-real-ip")??req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim()??"unknown").slice(0,128),ua=req.headers.get("user-agent")??"",ih=await hash(ip+"|"+ADMIN_KEY),uh=ua?await hash(ua+"|"+ADMIN_KEY):null;const {data:reservation,error:rateError}=await db.rpc("vin_reserve_challenge_rate_limit",{p_site_id:site.id,p_request_ip_hash:ih,p_now:new Date().toISOString()});if(rateError)return out({success:false,code:"rate_limit_unavailable"},503,origin);const rate=Array.isArray(reservation)?reservation[0]:reservation;if(rate?.allowed!==true)return out({success:false,code:"rate_limited",retry_after:Math.max(1,Number(rate?.retry_after)||60)},429,origin);let g:any;if(site.captcha_type==="visual_select_v1"||site.captcha_type==="math_v1")return out({success:false,code:"captcha_type_deprecated",message:"This challenge type has been retired because it is too easy to automate. Switch the site to Image Select."},409,origin);if(site.captcha_type==="image_select_v1")g=await makeImage(site.id);else if(site.captcha_type==="drag_drop_v1")g=makeDrag();else if(site.captcha_type==="connect_dots_v1")g=makeConnect();else return out({success:false,code:"captcha_type_unavailable"},409,origin);const id=crypto.randomUUID(),t=token(),expires=new Date(Date.now()+120000).toISOString();const storedData=g.data;let clientData:any;
 if(g.type==="image_select_v1"){
- clientData={...g.data,items:g.data.items.map((item:any)=>({id:item.id,image_url:SUPABASE_URL+"/functions/v1/captcha-challenge?image="+encodeURIComponent(id+"."+item.id)}))};
+ clientData={...g.data,items:g.data.items.map((item:any)=>({id:item.id,image_url:SUPABASE_URL+"/functions/v1/captcha-challenge?asset="+encodeURIComponent(item.id)+"&site_id="+encodeURIComponent(site.id)}))};
 }else if(g.type==="drag_drop_v1"){
  clientData={version:g.data.version,prompt:g.data.prompt,slots:g.data.slots,board_url:SUPABASE_URL+"/functions/v1/captcha-challenge?image="+encodeURIComponent(id+".drag-board"),piece_url:SUPABASE_URL+"/functions/v1/captcha-challenge?image="+encodeURIComponent(id+".drag-piece")};
 }else if(g.type==="connect_dots_v1"){
