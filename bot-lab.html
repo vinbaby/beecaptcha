@@ -13,7 +13,7 @@
 <section class="lab-metrics"><div class="lab-metric"><small>Challenges created</small><strong id="metricChallenges">—</strong></div><div class="lab-metric"><small>AI solved</small><strong id="metricSolved">—</strong><small id="metricSolvedMeta" class="sub">of evaluated rounds</small></div><div class="lab-metric"><small>Wrong answer blocked</small><strong id="metricWrong">—</strong></div><div class="lab-metric"><small>Replay blocked</small><strong id="metricReplay">—</strong></div></section>
 <section class="workspace-card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><h2 style="margin:0">Test run results</h2><span id="runState" class="pill">Ready</span></div><div id="checkList" class="lab-list" style="margin-top:14px"><p class="lab-small">Choose a website, then run the tests.</p></div></section>
 <section id="interpretation" class="workspace-card lab-report"><span class="eyebrow">ASSESSMENT</span><h3>Waiting for test results</h3><p>The AI model can detect common objects, but it is only one bot strategy and a small sample is not a certification. A successful AI solve is a concrete weakness; a failed solve is not proof that other models cannot solve it.</p></section>
-<p class="lab-footer">Safety limits: maximum 6 challenge requests per run; only the selected site; no Secret Key is read; wrong answers are tested on a fresh challenge. The browser downloads the pinned model scripts and model weights from jsDelivr / TensorFlow hosting. Object images are analyzed locally in the browser, not uploaded to an AI inference API.</p>
+<p class="lab-footer">Safety limits: maximum 6 live challenge requests per run; only the selected site; no Secret Key is read; wrong answers are tested on a fresh challenge. A separate authenticated server-side suite creates and removes temporary fixture rows to test replay, expiry, invalid tokens, and attempt limits. The browser downloads pinned model scripts and model weights; image inference runs locally, not through an AI inference API.</p>
 </main></div></div>
 <script>
 const BeeRuntime = window.Bee;
@@ -39,11 +39,27 @@ return{ok:true,target,answer:picked.sort().join(","),selected:picked.length,deta
 function encodeToken(challenge,answer){const bytes=new TextEncoder().encode(JSON.stringify({challenge_id:challenge.challenge_id,token:challenge.token,answer:String(answer)}));let bin="";bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin).replaceAll("+","-").replaceAll("/","_").replaceAll("=","")}
 async function createChallenge(siteKey){const res=await fetch(API+"/captcha-challenge",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({site_key:siteKey}),cache:"no-store"});const data=await res.json().catch(()=>({}));if(!res.ok||!data.success)throw new Error(data.code||("challenge HTTP "+res.status));return data}
 async function verifyAnswer(siteId,verificationToken){const session=await db.auth.getSession(),jwt=session.data?.session?.access_token;if(session.error||!jwt)throw new Error("Dashboard session expired; sign in again.");const res=await fetch(API+"/captcha-test-verify",{method:"POST",cache:"no-store",headers:{"content-type":"application/json",Authorization:"Bearer "+jwt,apikey:SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({site_id:siteId,verification_token:verificationToken})});const data=await res.json().catch(()=>({}));return{ok:res.ok,data,status:res.status}}
+async function runServerSuite(siteId){
+ const session=await db.auth.getSession(),jwt=session.data?.session?.access_token;
+ if(session.error||!jwt)throw new Error("Dashboard session expired; sign in again.");
+ const res=await fetch(API+"/captcha-security-test",{method:"POST",cache:"no-store",headers:{"content-type":"application/json",Authorization:"Bearer "+jwt,apikey:SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({site_id:siteId})});
+ const data=await res.json().catch(()=>({}));
+ if(!res.ok&&!Array.isArray(data.checks))throw new Error(data.code||("security suite HTTP "+res.status));
+ if(!Array.isArray(data.checks))throw new Error(data.code||"Security suite returned no checks.");
+ return data;
+}
 function normalized(value){return String(value||"").toLowerCase().replaceAll("_"," ").trim()}
 async function run(){const site=currentSite();if(!site)return;if(location.origin!=="https://beecaptcha.vercel.app"){alert("Open this tool at https://beecaptcha.vercel.app; the test verifier is restricted to this dashboard origin.");return}if(site.status!=="active"||!(site.allowed_domains||[]).some(d=>hostname(d)==="beecaptcha.vercel.app")){alert("Enable this website and add beecaptcha.vercel.app to its allowed domains before testing.");return}
 const button=$("#runTests"),exportButton=$("#exportReport");button.disabled=true;exportButton.disabled=true;button.textContent="AI robot running…";setRunState("Running","active");activeRows=[];report=[];imagePredictions=new Map();renderRows();let created=0,solved=0,attempted=0,wrong=null,replay=null,model=null;
 setMetrics(0,0,0,null,null);
 try{
+ addRow("Run server-side security fixture suite","warn","Testing valid-once, replay, invalid token, five-attempt lockout, and expiry with temporary rows.");
+ try{
+  const suite=await runServerSuite(site.id);
+  if(suite.checks.length){for(const check of suite.checks)addRow("Backend control: "+check.id,check.pass?"pass":"fail",check.detail);const replayCheck=suite.checks.find(check=>check.id==="token_replay_blocked");replay=replayCheck?Boolean(replayCheck.pass):null;}
+  else{replay=null;addRow("Backend security suite","fail","No individual checks were returned.")}
+ }catch(e){replay=null;addRow("Backend security suite","fail",e.message)}
+ setMetrics(created,solved,attempted,wrong,replay);
  addRow("Load browser AI model","warn","Loading TensorFlow.js and COCO-SSD weights. On the first run this can take a while; inference runs locally.");
  try{model=await getVisionModel();addRow("AI model ready","pass","COCO-SSD lite MobileNet v2 loaded. Minimum target confidence: "+Math.round(MIN_SCORE*100)+"%.")}
  catch(e){addRow("AI model unavailable","fail",e.message+" The challenge solve rate cannot be measured in this run.");}
