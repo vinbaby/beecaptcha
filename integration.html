@@ -32,15 +32,27 @@
       <div class="workspace-title">
         <div>
           <span class="eyebrow">DEVELOPER · INTEGRATION</span>
-          <h1>Install BeeCaptcha on your website.</h1>
+          <h1>Copy, paste, and show BeeCaptcha.</h1>
           <span id="integrationSiteName" class="captcha-badge" style="margin-top:8px;display:inline-flex">Website</span>
-          <p>Choose your stack to generate the frontend widget and a server-side token verification example.</p>
+          <p>The fastest option is one copy-and-paste snippet. Advanced platform-specific examples are available below.</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <a id="botLabLink" class="ghost" href="bot-lab.html">🤖 Test AI robot</a>
           <a id="backSite" class="ghost" href="dashboard.html">← Websites</a>
         </div>
       </div>
+
+      <section class="workspace-card" id="quickEmbed" style="margin-bottom:16px;border-color:#e7c85b">
+        <div class="integration-step"><b>1</b><span>Quick install — copy &amp; paste</span></div>
+        <h2 style="margin:5px 0 8px">Add BeeCaptcha to your website</h2>
+        <p class="desc">No plugin or ZIP needed. Copy this snippet and paste it into the HTML of the page where you want the CAPTCHA to appear, usually near the form you want to protect.</p>
+        <pre id="quickEmbedCode" class="detail-code" style="white-space:pre;overflow:auto"><!-- Select a website to generate its embed code --></pre>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button id="copyQuickEmbed" class="cta" type="button">Copy embed code</button>
+          <span id="quickEmbedStatus" class="desc" role="status" aria-live="polite" style="margin:0">The Site Key is public; never put your Secret Key in this snippet.</span>
+        </div>
+        <div class="integration-warning" style="margin-top:12px">This snippet displays the CAPTCHA. To actually protect login, signup, checkout, or other sensitive actions, your website's backend must verify the token with BeeCaptcha before processing the action.</div>
+      </section>
 
       <section class="workspace-card" style="margin-bottom:16px">
         <label for="siteUrl" style="display:block;margin:0 0 7px">1. Paste your website URL</label>
@@ -57,8 +69,8 @@
       </section>
 
       <section class="workspace-card" id="packageBuilder" style="margin-bottom:16px">
-        <div class="integration-step"><b>3</b><span>Generate your ready-to-configure package</span></div>
-        <p class="desc">BeeCaptcha packages the selected platform with your Site Key, website URL, frontend example, backend verification endpoint, and setup instructions. Your Secret Key is never included.</p>
+        <div class="integration-step"><b>Advanced</b><span>Generate a framework starter ZIP (optional)</span></div>
+        <p class="desc">Only use this if you want a larger starter project. For a basic CAPTCHA embed, the copy-and-paste snippet above is enough to display the widget. Your Secret Key is never included.</p>
         <button id="generatePackage" class="cta" type="button">Generate &amp; download ZIP</button>
         <p id="packageStatus" class="desc" role="status" aria-live="polite" style="margin-bottom:0">Choose a registered website URL and platform, then generate your package.</p>
       </section>
@@ -329,6 +341,30 @@ function renderSnippets(){
   $("#backendDescription").textContent=config.backendDescription;
   $("#frontendCode").textContent=config.frontend;
   $("#backendCode").textContent=config.backend;
+}
+
+
+function quickEmbedSnippet(){
+  if(!siteKey||siteKey==="YOUR_SITE_KEY")return "<!-- Open Integration from one of your websites to generate a Site Key snippet -->";
+  return '<script src="'+WIDGET_URL+'?site_key='+encodeURIComponent(siteKey)+'" async defer><\/script>\n<vin-captcha data-vin-captcha="'+siteKey+'"></vin-captcha>';
+}
+async function copyQuickEmbed(){
+  const button=$("#copyQuickEmbed"), status=$("#quickEmbedStatus");
+  if(!button||!status)return;
+  if(!siteId||!siteKey||siteKey==="YOUR_SITE_KEY"){
+    status.textContent="Open Integration from a website you own to get its Site Key.";
+    status.style.color="#a53232";return;
+  }
+  const ok=await copy($("#quickEmbedCode").textContent);
+  if(ok){
+    status.textContent="Embed code copied. Paste it into your webpage's HTML.";
+    status.style.color="";
+    const old=button.textContent;button.textContent="Copied!";
+    setTimeout(()=>button.textContent=old,1200);
+  }else{
+    status.textContent="Could not copy automatically. Select the code and copy it manually.";
+    status.style.color="#a53232";
+  }
 }
 
 function isAllowedWebsiteHost(host){
@@ -663,6 +699,8 @@ async function init(){
     if(!r.data){siteId="";siteKey="YOUR_SITE_KEY";}
     else{siteKey=r.data.site_key;siteName=r.data.name;siteStatus=r.data.status;siteAllowedDomains=r.data.allowed_domains||[];$("#backSite").href="website.html?id="+encodeURIComponent(r.data.id);$("#integrationSiteName").textContent=r.data.name;}
   }else{siteKey=params.get("site_key")||"YOUR_SITE_KEY";}
+  $("#quickEmbedCode").textContent=quickEmbedSnippet();
+  $("#copyQuickEmbed").addEventListener("click",copyQuickEmbed);
   renderSnippets();
   const firstDomain=siteAllowedDomains.find(value=>!String(value||"").trim().startsWith("*."));
   if(firstDomain)$("#siteUrl").value="https://"+normalizeDomain(firstDomain);
