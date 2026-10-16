@@ -81,8 +81,8 @@
 <script>
 const {db,$,$$,esc,fmt,relative,requireUser,wireLogout,copy,notice,openSite,openIntegration,featureRoute} = Bee;
 let user, sites = [], captchaTypes = [], billing = null;
-const icons={visual_select_v1:"◈",image_select_v1:"▦",math_v1:"∑",text_v1:"Aa",slider_v1:"↔",drag_drop_v1:"✦",rotate_v1:"↻"};
-function captchaTypeName(code){return captchaTypes.find(x=>x.code===code)?.name||code||"Visual Select";}
+const icons={image_select_v1:"▦",drag_drop_v1:"✦",connect_dots_v1:"⌁"};
+function captchaTypeName(code){return captchaTypes.find(x=>x.code===code)?.name||code||"Image Select";}
 function renderCaptchaOptions(containerSelector,inputSelector,selected){
  const el=$(containerSelector); if(!el)return;
  el.innerHTML=captchaTypes.map(t=>`<button type="button" class="captcha-option ${t.code===selected?"selected":""}" data-captcha-option="${esc(t.code)}"><span class="captcha-icon">${icons[t.code]||"◇"}</span><span><b>${esc(t.name)}</b><small>${esc(t.description)}</small></span><span class="captcha-check">✓</span></button>`).join("");
