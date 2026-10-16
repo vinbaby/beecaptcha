@@ -6,6 +6,7 @@
 <title>Integration Wizard — BeeCaptcha</title>
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="bee-core.js"></script>
 </head>
 <body class="app-body">
@@ -626,11 +627,11 @@ async function generatePackage(){
     zip.file("server.js",makeNodeServer());
     zip.file("package.json",JSON.stringify({name:"beecaptcha-integration",private:true,type:"module",scripts:{start:"node server.js"},dependencies:{dotenv:"^16.4.5",express:"^4.21.2"}},null,2));
   }else if(platform==="react-node"){
-    zip.file("index.html",'<div id="root"></div><script type="module" src="/src/main.jsx"></script>');
+    zip.file("index.html",'<!doctype html>\n<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha React sample</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>');
     zip.file("src/main.jsx",'import React from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App.jsx";\ncreateRoot(document.getElementById("root")).render(<App />);\n');
     zip.file("src/App.jsx",makeReactApp());
     zip.file("server.js",makeNodeServer().replace('app.use(express.static("public"));','app.use(express.static("dist"));'));
-    zip.file("vite.config.js",'import { defineConfig } from "vite";\nexport default defineConfig({server:{proxy:{"/api":"http://localhost:3001"}}});\n');
+    zip.file("vite.config.js",'import { defineConfig } from "vite";\nexport default defineConfig({server:{proxy:{"/api":"http://localhost:3000"}}});\n');
     zip.file("package.json",JSON.stringify({name:"beecaptcha-react-integration",private:true,type:"module",scripts:{dev:"concurrently -k \"vite\" \"npm:dev:server\"", "dev:server":"node server.js",build:"vite build",start:"node server.js"},dependencies:{dotenv:"^16.4.5",express:"^4.21.2",react:"^18.3.1","react-dom":"^18.3.1"},devDependencies:{vite:"^6.0.0",concurrently:"^9.1.0"}},null,2));
   }else if(platform==="nextjs"){
     zip.file("components/VinCaptchaForm.tsx",makeNextComponent());
