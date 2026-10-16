@@ -1,0 +1,25 @@
+project_id = "zjghuovefnbuliovttqa"
+
+[functions.captcha-challenge]
+verify_jwt = false
+
+[functions.captcha-verify]
+verify_jwt = false
+
+[functions.widget]
+verify_jwt = false
+
+[functions.site-rotate-secret]
+verify_jwt = true
+
+[functions.paddle-checkout]
+verify_jwt = true
+
+[functions.paddle-webhook]
+verify_jwt = false
+
+[functions.captcha-test-verify]
+verify_jwt = true
+
+[functions.captcha-security-test]
+verify_jwt = true
