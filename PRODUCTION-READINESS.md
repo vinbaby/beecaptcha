@@ -6,18 +6,19 @@
 
 Supabase project: `zjghuovefnbuliovttqa`
 
-- `captcha-challenge` v12: active; returns image-selection challenges only and proxies licensed Wikimedia image bytes through a host-restricted endpoint with CORS support for browser-side AI evaluation. Weak `visual_select_v1` and `math_v1` types are retired and rejected.
-- `captcha-verify` v5; `widget` v9.
+- `captcha-challenge` v14: ACTIVE; supports `image_select_v1`, `drag_drop_v1`, and `connect_dots_v1`. It retains the Wikimedia Commons host-restricted image proxy for Image Select and returns the actual edge list to the Connect Dots widget.
+- `widget` v11: ACTIVE; implements Image Select, Drag & Drop, and Connect Dots interactions and emits a short-lived verification token for server-side checking.
+- `captcha-verify` v5: ACTIVE; validates the site secret, challenge answer and token through the database verification RPC.
 - `captcha-test-verify` v1: authenticated live answer check for the dashboard.
 - `captcha-security-test` v1: authenticated server-side fixture checks for correct answer, one-time use, invalid tokens, attempt limits, and expiry.
 - `site-rotate-secret` v3; `paddle-checkout` v3; `paddle-webhook` v4.
 
 ## Verification evidence — 2026-10-16
 
-- The Postgres verification RPC regression suite passed for correct-answer acceptance once, replay rejection, wrong-token rejection without consuming a challenge, five-attempt lockout, and expiry rejection.
+- The Postgres verification RPC regression suite previously passed for correct-answer acceptance once, replay rejection, wrong-token rejection without consuming a challenge, five-attempt lockout, and expiry rejection.
 - The temporary regression rows were removed; a follow-up query reported zero leftover rows.
-- Source compilation was verified by deployment: `captcha-challenge` v12 is ACTIVE, and the Vercel check for the latest `main` commit reports success.
-- Still not verified in this run: a complete live browser pass through the new COCO-SSD Bot Lab, source-image proxy behavior against every Wikimedia file, human completion rate, and statistical AI solve rate. These remain release-gate items.
+- The latest `captcha-challenge` v14 and `widget` v11 deployments returned ACTIVE. Source checks confirmed that the widget implements the three supported challenge types and that the challenge API passes Connect Dots edges to the browser.
+- A full live browser end-to-end run was not completed in this update. Source-image proxy behavior against every Wikimedia file, human completion rate, and statistical AI solve rate also remain unverified release-gate items.
 
 ## Controls now implemented
 
