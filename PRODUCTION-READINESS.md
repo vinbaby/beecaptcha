@@ -6,7 +6,7 @@
 
 Supabase project: `zjghuovefnbuliovttqa`
 
-- `captcha-challenge` v16: ACTIVE; supports `image_select_v1`, `drag_drop_v1`, and `connect_dots_v1`. The proxy now resolves Wikimedia Commons file names through the MediaWiki imageinfo API to obtain a 640px thumbnail URL on `upload.wikimedia.org`, while retaining hostname restrictions and response-size checks. Image Select avoids repeating the last two target categories when other eligible categories exist.
+- `captcha-challenge` v17: ACTIVE; supports `image_select_v1`, `drag_drop_v1`, and `connect_dots_v1`. The image proxy resolves Wikimedia Commons file names through the MediaWiki imageinfo API, caches resolved thumbnail candidates for reuse, falls back to the original Commons file URL, and restricts final image hosts and response size. Image Select avoids repeating the last two target categories when other eligible categories exist. Stable asset URLs include the selected site ID so browser/CDN image caching can work between challenges.
 - `widget` v12: ACTIVE; implements Image Select, Drag & Drop, and Connect Dots interactions and emits a short-lived verification token for server-side checking. Image Select loads tiles with a 220ms stagger, retries failed images twice, and disables verification until all tiles load. “New challenge” now immediately requests a fresh challenge instead of only returning to the initial button.
 - `captcha-verify` v5: ACTIVE; validates the site secret, challenge answer and token through the database verification RPC.
 - `captcha-test-verify` v1: authenticated live answer check for the dashboard.
@@ -17,7 +17,7 @@ Supabase project: `zjghuovefnbuliovttqa`
 
 - The Postgres verification RPC regression suite previously passed for correct-answer acceptance once, replay rejection, wrong-token rejection without consuming a challenge, five-attempt lockout, and expiry rejection.
 - The temporary regression rows were removed; a follow-up query reported zero leftover rows.
-- `captcha-challenge` v16 and `widget` v12 deployments returned ACTIVE. Source checks confirmed the MediaWiki thumbnail lookup, two-category anti-repeat logic, staggered image retries, wait-for-all-images behavior, immediate refresh, and Connect Dots edge payload. These checks confirm deployed source, not the successful loading of all nine images in a real browser.
+- `captcha-challenge` v17 and `widget` v12 deployments returned ACTIVE. Supabase edge logs from the previous implementation confirmed multiple image-proxy GET requests returning HTTP 502 while a smaller number returned 200, matching the reported partial image rendering. The active v17 source adds cached thumbnail resolution/fallback; widget v12 staggers image requests, retries each image up to two times, blocks verification when any tile failed, and immediately requests a new challenge on refresh. Source and deployment checks passed, but all nine images have not yet been verified in a real browser after this latest change.
 - A full live browser end-to-end run was not completed in this update. In particular, verify that all nine Wikimedia thumbnails load in the production browser after this change; if any fail, use the new in-widget status and refresh behavior to identify the remaining failures. Human completion rate and statistical AI solve rate also remain unverified release-gate items.
 
 ## Controls now implemented
