@@ -34,8 +34,61 @@ async function getVisionModel(){if(visionModel)return visionModel;if(visionPromi
 async function getImage(url){return new Promise((resolve,reject)=>{const img=new Image();img.crossOrigin="anonymous";img.onload=()=>resolve(img);img.onerror=()=>reject(new Error("Image could not be loaded with cross-origin access."));img.src=url})}
 async function detectImage(url,model,cacheKey){const key=cacheKey||url;if(imagePredictions.has(key))return imagePredictions.get(key);const promise=(async()=>{const image=await getImage(url);const detections=await model.detect(image,20,MIN_SCORE);return detections.map(d=>({class:String(d.class||"").toLowerCase(),score:Number(d.score)||0}))})();imagePredictions.set(key,promise);try{return await promise}catch(e){imagePredictions.delete(key);throw e}}
 function parseTarget(challenge){const prompt=String(challenge.challenge?.prompt||"");const m=prompt.match(/select all images containing a[n]?\s+(.+?)[.?!]?$/i);return m?m[1].replace(/[.?!]+$/,"").replaceAll("_"," ").trim().toLowerCase():""}
-async function predictChallenge(challenge,model){if(challenge.challenge_type!=="image_select_v1")return{ok:false,reason:"This AI benchmark currently evaluates image_select_v1 only."};const target=parseTarget(challenge);if(!target)return{ok:false,reason:"Could not extract the target category from the prompt."};const items=challenge.challenge?.items||[];if(items.length!==9)return{ok:false,reason:"The challenge did not return the expected 9 image tiles."};const picked=[],notes=[];for(let i=0;i<items.length;i++){const item=items[i];try{const ds=await detectImage(item.image_url,model,item.id);const hits=ds.filter(d=>d.class===target&&d.score>=MIN_SCORE);if(hits.length)picked.push(String(item.id));const best=ds.slice().sort((a,b)=>b.score-a.score)[0];notes.push("tile "+(i+1)+": "+(best?best.class+" "+Math.round(best.score*100)+"%":"no object detected")+(hits.length?" → selected":""));}catch(e){return{ok:false,reason:"Vision inference failed on a challenge tile: "+e.message,details:notes}}}
-return{ok:true,target,answer:picked.sort().join(","),selected:picked.length,details:notes}}
+async function predictChallenge(challenge,model){
+ if(challenge.challenge_type==="connect_dots_v1"){
+  const payload=challenge.challenge||{},nodes=Array.isArray(payload.nodes)?payload.nodes:[],edges=Array.isArray(payload.edges)?payload.edges:[];
+  if(nodes.length<2||!edges.length)return{ok:false,reason:"The Connect the Dots graph did not include enough nodes/edges."};
+  const adjacency=nodes.map(()=>[]);
+  for(const pair of edges){if(Array.isArray(pair)&&pair.length>=2){const a=Number(pair[0]),b=Number(pair[1]);if(Number.isInteger(a)&&Number.isInteger(b)&&a>=0&&b>=0&&a<nodes.length&&b<nodes.length){adjacency[a].push(b);adjacency[b].push(a);}}}
+  const parent=new Array(nodes.length).fill(-1),seen=new Set([0]),queue=[0];
+  for(let head=0;head<queue.length;head++){const cur=queue[head];if(cur===nodes.length-1)break;for(const next of adjacency[cur])if(!seen.has(next)){seen.add(next);parent[next]=cur;queue.push(next);}}
+  if(!seen.has(nodes.length-1))return{ok:false,reason:"No connected path from A to B was present in the graph."};
+  const indexes=[];let cur=nodes.length-1;while(cur!==-1){indexes.unshift(cur);cur=parent[cur];}
+  const answer=indexes.map(i=>String(nodes[i].id)).join(",");
+  return{ok:true,target:"route A to B",answer,selected:indexes.length,method:"graph traversal",details:["Reconstructed the route from public node/edge data in "+indexes.length+" points."]};
+ }
+ if(challenge.challenge_type==="drag_drop_v1"){
+  const payload=challenge.challenge||{},slots=Array.isArray(payload.slots)?payload.slots:[];
+  if(!slots.length||!payload.board_url||!payload.piece_url)return{ok:false,reason:"The Drag & Match challenge is missing its board, piece, or slot data."};
+  const [boardRes,pieceRes]=await Promise.all([fetch(payload.board_url,{cache:"no-store"}),fetch(payload.piece_url,{cache:"no-store"})]);
+  if(!boardRes.ok||!pieceRes.ok)return{ok:false,reason:"Could not download puzzle SVGs ("+boardRes.status+"/"+pieceRes.status+")."};
+  const parser=new DOMParser();
+  const board=parser.parseFromString(await boardRes.text(),"image/svg+xml");
+  const piece=parser.parseFromString(await pieceRes.text(),"image/svg+xml");
+  if(board.querySelector("parsererror")||piece.querySelector("parsererror"))return{ok:false,reason:"The puzzle SVG could not be parsed."};
+  const signature=el=>{
+   if(!el)return"";
+   const tag=el.tagName.toLowerCase();
+   if(tag==="polygon")return"polygon:"+String(el.getAttribute("points")||"").trim().split(/\s+/).filter(Boolean).length;
+   if(tag==="circle")return"circle";
+   if(tag==="rect")return"rect:"+String(el.getAttribute("rx")||"0");
+   return tag;
+  };
+  const boardShapes=[...board.querySelectorAll('circle[fill="#ffffff"],rect[fill="#ffffff"],polygon[fill="#ffffff"]')];
+  const pieceShape=piece.querySelector('circle[fill="#2563eb"],rect[fill="#2563eb"],polygon[fill="#2563eb"]');
+  if(boardShapes.length!==5||!pieceShape)return{ok:false,reason:"Could not identify the five outline shapes and the puzzle piece."};
+  const target=signature(pieceShape),matched=boardShapes.map((el,i)=>({i,sig:signature(el)})).filter(x=>x.sig===target);
+  if(matched.length!==1||!slots[matched[0].i])return{ok:false,reason:"The piece shape did not match exactly one slot."};
+  const answer=String(slots[matched[0].i].id);
+  return{ok:true,target:"matching outline",answer,selected:1,method:"SVG shape matching",details:["Matched the piece geometry to slot "+(matched[0].i+1)+" ("+target+")."]};
+ }
+ if(challenge.challenge_type!=="image_select_v1")return{ok:false,reason:"Unsupported challenge type: "+String(challenge.challenge_type||"unknown")};
+ if(!model)return{ok:false,reason:"Image Select requires the browser vision model."};
+ const target=parseTarget(challenge),items=challenge.challenge?.items||[];
+ if(!target)return{ok:false,reason:"Could not extract the target category from the prompt."};
+ if(items.length!==9)return{ok:false,reason:"The challenge did not return the expected 9 image tiles."};
+ const picked=[],notes=[];
+ for(let i=0;i<items.length;i++){
+  const item=items[i];
+  try{
+   const ds=await detectImage(item.image_url,model,item.id),hits=ds.filter(d=>d.class===target&&d.score>=MIN_SCORE);
+   if(hits.length)picked.push(String(item.id));
+   const best=ds.slice().sort((a,b)=>b.score-a.score)[0];
+   notes.push("tile "+(i+1)+": "+(best?best.class+" "+Math.round(best.score*100)+"%":"no object detected")+(hits.length?" selected":""));
+  }catch(e){return{ok:false,reason:"Vision inference failed on a challenge tile: "+e.message,details:notes};}
+ }
+ return{ok:true,target,answer:picked.sort().join(","),selected:picked.length,method:"COCO-SSD object detection",details:notes};
+}
 function encodeToken(challenge,answer){const bytes=new TextEncoder().encode(JSON.stringify({challenge_id:challenge.challenge_id,token:challenge.token,answer:String(answer)}));let bin="";bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin).replaceAll("+","-").replaceAll("/","_").replaceAll("=","")}
 async function createChallenge(siteKey){const res=await fetch(API+"/captcha-challenge",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({site_key:siteKey}),cache:"no-store"});const data=await res.json().catch(()=>({}));if(!res.ok||!data.success)throw new Error(data.code||("challenge HTTP "+res.status));return data}
 async function verifyAnswer(siteId,verificationToken){const session=await db.auth.getSession(),jwt=session.data?.session?.access_token;if(session.error||!jwt)throw new Error("Dashboard session expired; sign in again.");const res=await fetch(API+"/captcha-test-verify",{method:"POST",cache:"no-store",headers:{"content-type":"application/json",Authorization:"Bearer "+jwt,apikey:SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({site_id:siteId,verification_token:verificationToken})});const data=await res.json().catch(()=>({}));return{ok:res.ok,data,status:res.status}}
@@ -60,24 +113,28 @@ try{
   else{replay=null;addRow("Backend security suite","fail","No individual checks were returned.")}
  }catch(e){replay=null;addRow("Backend security suite","fail",e.message)}
  setMetrics(created,solved,attempted,wrong,replay);
- addRow("Load browser AI model","warn","Loading TensorFlow.js and COCO-SSD weights. On the first run this can take a while; inference runs locally.");
- try{model=await getVisionModel();addRow("AI model ready","pass","COCO-SSD lite MobileNet v2 loaded. Minimum target confidence: "+Math.round(MIN_SCORE*100)+"%.")}
- catch(e){addRow("AI model unavailable","fail",e.message+" The challenge solve rate cannot be measured in this run.");}
+ let modelLoadAttempted=false,modelLoadError="";
  for(let i=1;i<=ROUND_COUNT;i++){
   let challenge;
   try{challenge=await createChallenge(site.site_key);created++;addRow("Round "+i+": challenge created","pass",challenge.challenge_type+"; live challenge endpoint responded.");}
   catch(e){addRow("Round "+i+": create challenge","fail",e.message);continue}
-  if(!model){addRow("Round "+i+": AI solve attempt","warn","Skipped because the vision model did not load.");continue}
+  if(challenge.challenge_type==="image_select_v1"&&!model&&!modelLoadAttempted){
+   modelLoadAttempted=true;
+   addRow("Load browser AI model","warn","Image Select appeared; loading COCO-SSD lite MobileNet v2. Image detection runs locally in this browser.");
+   try{model=await getVisionModel();addRow("AI vision model ready","pass","COCO-SSD lite MobileNet v2 loaded. Minimum target confidence: "+Math.round(MIN_SCORE*100)+"%.")}
+   catch(e){modelLoadError=e.message;addRow("AI vision model unavailable","fail",e.message+" Image Select rounds cannot be benchmarked in this run.");}
+  }
+  if(challenge.challenge_type==="image_select_v1"&&!model){addRow("Round "+i+": AI solve attempt","warn","Skipped Image Select because the vision model did not load.");continue;}
   let pred;
   try{pred=await predictChallenge(challenge,model)}
-  catch(e){addRow("Round "+i+": image detection","fail",e.message);continue}
-  if(!pred.ok){addRow("Round "+i+": image detection","fail",pred.reason);continue}
+  catch(e){addRow("Round "+i+": challenge solver","fail",e.message);continue}
+  if(!pred.ok){addRow("Round "+i+": challenge solver","fail",pred.reason);continue}
   attempted++;
   const token=encodeToken(challenge,pred.answer);
   let result;
   try{result=await verifyAnswer(site.id,token)}
   catch(e){addRow("Round "+i+": server verification","fail",e.message);continue}
-  const info="Target: "+pred.target+". AI selected "+pred.selected+" of 9 tiles. "+pred.details.join("; ");
+  const info="Challenge: "+challenge.challenge_type+". Solver: "+pred.method+". "+pred.details.join("; ");
   if(result.ok&&result.data.success===true){
    solved++;addRow("Round "+i+": AI SOLVED CAPTCHA","fail","Security finding: the model's answer was accepted by the server. "+info);
    let again;try{again=await verifyAnswer(site.id,token);if(!again.ok&&again.data.code==="replay"){replay=true;addRow("Round "+i+": replay protection","pass","The already-used verification token was rejected with replay.")}else{replay=false;addRow("Round "+i+": replay protection","fail","Unexpected response to reused token: "+(again.data.code||again.status))}}catch(e){addRow("Round "+i+": replay protection","fail",e.message)}
@@ -94,16 +151,17 @@ try{
  const vulnerable=solved>0,controlFailure=wrong===false||replay===false;
  setRunState(controlFailure?"Action needed":vulnerable?"Weakness found":attempted>0?"No AI solve observed":"Incomplete",""+(controlFailure||vulnerable?"bad":"active"));
  let title,body;
- if(!model){title="AI benchmark incomplete";body="The browser AI model did not load, so CAPTCHA resistance was not measured. Fix the model/CDN or image CORS error and rerun."}
- else if(attempted===0){title="No valid AI attempts completed";body="The model loaded but could not evaluate any challenge. Check challenge type, asset CORS, and image availability."}
- else if(vulnerable){title="The AI model solved "+solved+" of "+attempted+" attempted challenges";body="This is a concrete weakness for this model and these image classes. Do not treat the CAPTCHA as ready for sale until image assets and challenge strategy have been improved and benchmarked across more bot strategies."}
- else{title="This model did not solve a challenge in this sample";body="This is not proof against other vision models or human-assisted solving. The sample is limited to "+attempted+" round(s) and COCO-SSD lite MobileNet v2 with a "+Math.round(MIN_SCORE*100)+"% detection threshold."}
+ if(attempted===0){title="No valid automated attempts completed";body="The test run did not complete any challenge-solver attempts. Check the result rows for model, SVG, network, or challenge data errors."}
+ else if(vulnerable){title="The test solver passed "+solved+" of "+attempted+" attempted challenges";body="Any accepted automated answer is a concrete weakness for that solver. Drag & Match and Connect the Dots expose deterministic structure and should be treated as fast UX challenges, not bot-resistant proof. Image Select is benchmarked separately with COCO-SSD."}
+ else{title="This solver did not pass a challenge in this sample";body="This is not proof against other bots or human-assisted solving. The sample is limited to "+attempted+" attempted challenge(s).";}
+ if(modelLoadAttempted&&!model)body+=" Image Select could not be benchmarked because the vision model failed to load: "+modelLoadError+".";
  $("#interpretation").innerHTML='<span class="eyebrow">ASSESSMENT</span><h3>'+esc(title)+'</h3><p>'+esc(body)+'</p><p><b>Wrong-answer rejection:</b> '+(wrong===true?"passed":wrong===false?"failed":"not measured")+'. <b>Replay protection:</b> '+(replay===true?"passed":replay===false?"failed":"not measured")+'.</p><p>AI solve resistance and server token controls are measured separately. The model result is a benchmark, not a security certification.</p>';
- report=activeRows.map(r=>({time:r.time,website:site.name,captcha_type:site.captcha_type,model:"COCO-SSD lite MobileNet v2",...r}));exportButton.disabled=!report.length;
+ report=activeRows.map(r=>({time:r.time,website:site.name,captcha_type:site.captcha_type,model:"Graph traversal + SVG shape matching + COCO-SSD image detection",...r}));exportButton.disabled=!report.length;
 }catch(e){addRow("Test run error","fail",e.message);setRunState("Error","bad")}
 finally{button.disabled=false;button.textContent="Run 5 AI tests";setMetrics(created,solved,attempted,wrong,replay)}
 }
 async function init(){user=await requireUser();if(!user)return;wireLogout();const sel=$("#siteSelect"),hint=$("#siteHint"),res=await db.from("sites").select("id,name,site_key,status,allowed_domains,captcha_type").eq("owner_id",user.id).order("name");if(res.error){sel.innerHTML='<option value="">Could not load websites</option>';hint.textContent=res.error.message;return}sites=res.data||[];const active=sites.filter(s=>s.status==="active");sel.innerHTML=active.length?active.map(s=>'<option value="'+esc(s.id)+'">'+esc(s.name)+" · "+esc(s.captcha_type||"unknown")+"</option>").join(""):'<option value="">No active websites</option>';if(!active.length){hint.textContent="Create a website or enable one in Settings first.";return}const requestedSiteId=new URLSearchParams(location.search).get("site_id");if(requestedSiteId&&active.some(s=>s.id===requestedSiteId))sel.value=requestedSiteId;$("#runTests").disabled=false;$("#runTests").onclick=run;$("#exportReport").onclick=()=>csv("beecaptcha-bot-lab-"+new Date().toISOString().slice(0,10)+".csv",[["time","website","captcha_type","model","name","state","detail"],...report.map(r=>[r.time,r.website,r.captcha_type,r.model,r.name,r.state,r.detail])]);sel.onchange=updateHint;updateHint()}
-function updateHint(){const s=currentSite(),hint=$("#siteHint");if(!s)return;if(location.origin!=="https://beecaptcha.vercel.app"){hint.className="lab-note warn";hint.textContent="Open https://beecaptcha.vercel.app. The server verification test is restricted to the production dashboard origin."}else if(!(s.allowed_domains||[]).some(d=>hostname(d)==="beecaptcha.vercel.app")){hint.className="lab-note warn";hint.textContent="Add beecaptcha.vercel.app to the selected site's allowed domains before testing."}else if(s.captcha_type!=="image_select_v1"){hint.className="lab-note warn";hint.textContent="This AI vision benchmark currently requires Image Select. Change this site's CAPTCHA type to Image Select to run it."}else{hint.className="lab-note";hint.textContent="Selected: "+s.name+" · Image Select. Up to 6 challenges per run. A successful AI solve is flagged as a weakness; failed solves are not a guarantee against other bots."}}
+function updateHint(){const s=currentSite(),hint=$("#siteHint");if(!s)return;if(location.origin!=="https://beecaptcha.vercel.app"){hint.className="lab-note warn";hint.textContent="Open https://beecaptcha.vercel.app. The server verification test is restricted to the production dashboard origin."}else if(!(s.allowed_domains||[]).some(d=>hostname(d)==="beecaptcha.vercel.app")){hint.className="lab-note warn";hint.textContent="Add beecaptcha.vercel.app to the selected site's allowed domains before testing."}else{hint.className="lab-note";hint.textContent="Selected: "+s.name+" · "+s.captcha_type+". Bot Lab tests Connect the Dots using graph traversal, Drag & Match using SVG shape matching, and Image Select using COCO-SSD when an image challenge appears. Up to 6 live challenge requests per run."}}
+
 init();
 </script></body></html>
