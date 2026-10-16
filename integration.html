@@ -1,15 +1,324 @@
-<!doctype html><html lang="en"><head>
-<!-- BeeCaptcha v8 --><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Integration — BeeCaptcha</title><link rel="stylesheet" href="styles.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="bee-core.js"></script></head><body class="app-body"><div class="app-shell"><aside class="app-sidebar"><a class="brand" href="index.html">BeeCaptcha</a><nav class="side-nav"><a href="dashboard.html"><span>⌂</span>Dashboard</a><a class="active" href="dashboard.html#sites"><span>◉</span>Websites</a><a href="bot-lab.html"><span>⌁</span>Bot Lab</a><a href="analytics.html"><span>▥</span>Analytics</a><a href="pricing.html"><span>◇</span>Billing</a><a href="settings.html"><span>⚙</span>Settings</a></nav><div class="side-bottom"><b>Free Plan</b><small>Secure integration with server-side verification.</small><a class="cta" href="pricing.html">View plans</a></div></aside><div class="app-content"><header class="app-topbar"><div class="search">⌕ &nbsp; Developer integration</div><div class="profile"><span class="avatar">B</span><div><b id="userEmail">Account</b><small>BeeCaptcha</small></div><button id="logout" class="ghost">Sign out</button></div></header><main class="page-workspace"><div class="workspace-title"><div><span class="eyebrow">DEVELOPER · INTEGRATION</span><h1>Protect your website with BeeCaptcha.</h1><span id="integrationSiteName" class="captcha-badge" style="margin-top:8px;display:inline-flex">Website</span><p>Use the public site key in your frontend and verify tokens on your backend.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><a id="botLabLink" class="ghost" href="bot-lab.html">🤖 Test AI robot</a><a id="backSite" class="ghost" href="dashboard.html">← Websites</a></div></div><section class="integration-card-grid"><article class="workspace-card"><div class="integration-step"><b>1</b><span>Add the widget</span></div><p class="desc">Put this snippet before <code>&lt;/body&gt;</code> and keep the site key public.</p><pre id="embed" class="detail-code"></pre><button id="copyEmbed" class="cta">Copy embed code</button></article><article class="workspace-card"><div class="integration-step"><b>2</b><span>Listen for verification</span></div><p class="desc">When the visitor completes the challenge, the widget emits a verification event.</p><pre class="detail-code">const captcha = document.querySelector('vin-captcha');
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Integration Wizard — BeeCaptcha</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="bee-core.js"></script>
+</head>
+<body class="app-body">
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a class="brand" href="index.html">BeeCaptcha</a>
+    <nav class="side-nav">
+      <a href="dashboard.html"><span>⌂</span>Dashboard</a>
+      <a class="active" href="dashboard.html#sites"><span>◉</span>Websites</a>
+      <a href="bot-lab.html"><span>⌁</span>Bot Lab</a>
+      <a href="analytics.html"><span>▥</span>Analytics</a>
+      <a href="pricing.html"><span>◇</span>Billing</a>
+      <a href="settings.html"><span>⚙</span>Settings</a>
+    </nav>
+    <div class="side-bottom"><b>Developer tools</b><small>Public Site Key in the browser. Secret Key on your server only.</small><a class="cta" href="pricing.html">View plans</a></div>
+  </aside>
+  <div class="app-content">
+    <header class="app-topbar">
+      <div class="search">⌕ &nbsp; Integration Wizard</div>
+      <div class="profile"><span class="avatar">B</span><div><b id="userEmail">Account</b><small>BeeCaptcha</small></div><button id="logout" class="ghost">Sign out</button></div>
+    </header>
+    <main class="page-workspace">
+      <div class="workspace-title">
+        <div>
+          <span class="eyebrow">DEVELOPER · INTEGRATION</span>
+          <h1>Install BeeCaptcha on your website.</h1>
+          <span id="integrationSiteName" class="captcha-badge" style="margin-top:8px;display:inline-flex">Website</span>
+          <p>Choose your stack to generate the frontend widget and a server-side token verification example.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <a id="botLabLink" class="ghost" href="bot-lab.html">🤖 Test AI robot</a>
+          <a id="backSite" class="ghost" href="dashboard.html">← Websites</a>
+        </div>
+      </div>
 
-captcha.addEventListener('vin-captcha-verified', (event) =&gt; {
-  const { token } = event.detail;
-  // Send token to your backend.
-});</pre></article><article class="workspace-card wide"><div class="integration-step"><b>3</b><span>Verify on your backend</span></div><p class="desc">Your server sends the site key, secret key and token to BeeCaptcha. Never send the secret from browser code.</p><pre id="curl" class="detail-code"></pre><button id="copyCurl" class="cta">Copy backend example</button><div class="integration-warning">⚠ Secret keys are server-only. Tokens are short-lived and single-use.</div></article><article id="widgetDemo" class="workspace-card wide" style="margin-top:10px"></article></section></main></div></div><script>
+      <section class="workspace-card" style="margin-bottom:16px">
+        <label for="platform" style="display:block;margin:0 0 7px">1. Choose your platform</label>
+        <select id="platform" style="max-width:520px">
+          <option value="html-node">HTML / JavaScript + Node.js (Express)</option>
+          <option value="react-node">React + Node.js (Express)</option>
+          <option value="nextjs">Next.js App Router</option>
+          <option value="php">HTML / JavaScript + PHP</option>
+        </select>
+        <p id="platformDescription" class="desc" style="margin-bottom:0">Static HTML widget, with an Express endpoint that verifies the token on your server.</p>
+      </section>
+
+      <section class="integration-card-grid">
+        <article class="workspace-card">
+          <div class="integration-step"><b>2</b><span id="frontendHeading">Add the widget to your frontend</span></div>
+          <p id="frontendDescription" class="desc">The Site Key is public. The widget emits a token when the visitor completes a challenge.</p>
+          <pre id="frontendCode" class="detail-code" style="white-space:pre;overflow:auto;max-height:520px"></pre>
+          <button id="copyFrontend" class="cta" type="button">Copy frontend code</button>
+        </article>
+        <article class="workspace-card">
+          <div class="integration-step"><b>3</b><span id="backendHeading">Verify the token on your backend</span></div>
+          <p id="backendDescription" class="desc">Your server uses environment variables to call the BeeCaptcha verification API. Never put the Secret Key in browser code.</p>
+          <pre id="backendCode" class="detail-code" style="white-space:pre;overflow:auto;max-height:520px"></pre>
+          <button id="copyBackend" class="cta" type="button">Copy backend code</button>
+        </article>
+        <article class="workspace-card wide">
+          <div class="integration-step"><b>4</b><span>Finish the production setup</span></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+            <div><b>Allow your domain</b><p class="desc">Add every production hostname, including the correct subdomains, in Website Settings.</p></div>
+            <div><b>Set server environment variables</b><p class="desc">Store the Secret Key in your hosting provider's server environment, not in HTML, React client code, or a public repository.</p></div>
+            <div><b>Gate the protected action</b><p class="desc">Only create the account, accept the comment, or continue checkout after your backend receives <code>success: true</code>.</p></div>
+            <div><b>Test negative cases</b><p class="desc">A missing, expired, replayed, or invalid token must fail closed. Do not trust a browser-only success message.</p></div>
+          </div>
+          <div class="integration-warning" style="margin-top:14px">A Site Key identifies the website and is safe to expose publicly. The Secret Key must remain server-only. The sample endpoint verifies CAPTCHA; connect its successful response to your own login, signup, comment, or checkout handler.</div>
+        </article>
+        <article id="widgetDemo" class="workspace-card wide" style="margin-top:10px"></article>
+      </section>
+    </main>
+  </div>
+</div>
+<script>
 const {db,$,requireUser,wireLogout,copy,SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,query}=Bee;
 const params=query();
 let siteKey="",siteId=params.get("site_id"),siteName="Website",siteStatus="",siteAllowedDomains=[];
+const VERIFY_URL=SUPABASE_URL+"/functions/v1/captcha-verify";
+const WIDGET_URL=SUPABASE_URL+"/functions/v1/widget";
+const closeScript="</scr"+"ipt>";
 function normalizeDomain(value){const raw=String(value||"").trim();try{return new URL(raw.includes("://")?raw:"https://"+raw).host.toLowerCase();}catch{return raw.toLowerCase();}}
 function allowedOnCurrentHost(){const host=location.host.toLowerCase();return siteAllowedDomains.some(value=>{const domain=normalizeDomain(value);return domain===host||(domain.startsWith("*.")&&host.endsWith(domain.slice(1)));});}
+function jsString(value){return JSON.stringify(String(value||""));}
+function htmlFrontend(verifyPath){
+  return [
+    '<!-- Replace the form fields and submit handler with your own form logic. -->',
+    '<script src="'+WIDGET_URL+'?site_key='+encodeURIComponent(siteKey)+'" async defer>'+closeScript,
+    '<form id="protected-form">',
+    '  <label>Email <input name="email" type="email" required></label>',
+    '  <vin-captcha data-vin-captcha="'+siteKey+'"></vin-captcha>',
+    '  <button type="submit">Continue</button>',
+    '  <p id="captcha-message" role="status"></p>',
+    '</form>',
+    '<script>',
+    'let verificationToken = "";',
+    'const captcha = document.querySelector("vin-captcha");',
+    'const form = document.querySelector("#protected-form");',
+    'const message = document.querySelector("#captcha-message");',
+    'captcha.addEventListener("vin-captcha-verified", (event) => {',
+    '  verificationToken = event.detail.token;',
+    '  message.textContent = "Challenge completed; checking with your server…";',
+    '});',
+    'form.addEventListener("submit", async (event) => {',
+    '  event.preventDefault();',
+    '  if (!verificationToken) { message.textContent = "Complete the CAPTCHA first."; return; }',
+    '  const response = await fetch("'+verifyPath+'", {',
+    '    method: "POST",',
+    '    headers: { "content-type": "application/json" },',
+    '    body: JSON.stringify({ token: verificationToken })',
+    '  });',
+    '  const result = await response.json();',
+    '  if (!response.ok || result.success !== true) { message.textContent = "CAPTCHA verification failed. Refresh the challenge and try again."; return; }',
+    '  message.textContent = "Verified. Continue your protected action on the server now.";',
+    '  // Call your own protected form endpoint only after this server verification succeeds.',
+    '});',
+    closeScript
+  ].join("\n");
+}
+function expressBackend(){
+  return [
+    '# .env (configure this in your host; do not commit it)',
+    'VIN_CAPTCHA_SITE_KEY='+siteKey,
+    'VIN_CAPTCHA_SECRET_KEY=YOUR_SECRET_KEY',
+    '',
+    '# server.js — npm install express; start with node server.js',
+    'import express from "express";',
+    'const app = express();',
+    'app.use(express.json());',
+    '',
+    'app.post("/api/verify-captcha", async (req, res) => {',
+    '  const token = req.body?.token;',
+    '  if (typeof token !== "string" || !token) {',
+    '    return res.status(400).json({ success: false, code: "missing_token" });',
+    '  }',
+    '  if (!process.env.VIN_CAPTCHA_SECRET_KEY || !process.env.VIN_CAPTCHA_SITE_KEY) {',
+    '    return res.status(500).json({ success: false, code: "captcha_not_configured" });',
+    '  }',
+    '  try {',
+    '    const upstream = await fetch('+jsString(VERIFY_URL)+', {',
+    '      method: "POST",',
+    '      headers: { "content-type": "application/json" },',
+    '      body: JSON.stringify({',
+    '        site_key: process.env.VIN_CAPTCHA_SITE_KEY,',
+    '        secret_key: process.env.VIN_CAPTCHA_SECRET_KEY,',
+    '        verification_token: token',
+    '      })',
+    '    });',
+    '    const result = await upstream.json();',
+    '    if (!upstream.ok || result.success !== true) {',
+    '      return res.status(400).json({ success: false, code: result.code || "verification_failed" });',
+    '    }',
+    '    // Perform the protected action here, or issue a short-lived internal result.',
+    '    return res.json({ success: true });',
+    '  } catch {',
+    '    return res.status(502).json({ success: false, code: "verification_unavailable" });',
+    '  }',
+    '});',
+    '',
+    'app.listen(process.env.PORT || 3000);'
+  ].join("\n");
+}
+function reactFrontend(){
+  return [
+    '"use client";',
+    'import { useEffect, useRef } from "react";',
+    '',
+    'const SITE_KEY = '+jsString(siteKey)+';',
+    'const WIDGET_URL = '+jsString(WIDGET_URL)+';',
+    '',
+    'export default function VinCaptcha({ onToken }) {',
+    '  const captchaRef = useRef(null);',
+    '  useEffect(() => {',
+    '    const element = captchaRef.current;',
+    '    if (!element) return;',
+    '    const onVerified = (event) => onToken?.(event.detail.token);',
+    '    element.addEventListener("vin-captcha-verified", onVerified);',
+    '    const script = document.createElement("script");',
+    '    script.src = WIDGET_URL + "?site_key=" + encodeURIComponent(SITE_KEY);',
+    '    script.async = true;',
+    '    document.head.appendChild(script);',
+    '    return () => {',
+    '      element.removeEventListener("vin-captcha-verified", onVerified);',
+    '      script.remove();',
+    '    };',
+    '  }, [onToken]);',
+    '  return <vin-captcha ref={captchaRef} data-vin-captcha={SITE_KEY} />;',
+    '}',
+    '',
+    '// Usage: <VinCaptcha onToken={(token) => setCaptchaToken(token)} />',
+    '// Send that token to your own backend and verify it server-side before continuing.'
+  ].join("\n");
+}
+function nextFrontend(){
+  return [
+    '"use client";',
+    'import { useEffect, useRef } from "react";',
+    '',
+    'const SITE_KEY = '+jsString(siteKey)+';',
+    'const WIDGET_URL = '+jsString(WIDGET_URL)+';',
+    '',
+    'export default function VinCaptcha({ onToken }: { onToken: (token: string) => void }) {',
+    '  const captchaRef = useRef<HTMLElement | null>(null);',
+    '  useEffect(() => {',
+    '    const element = captchaRef.current;',
+    '    if (!element) return;',
+    '    const onVerified = (event: Event) => {',
+    '      const detail = (event as CustomEvent<{token: string}>).detail;',
+    '      onToken(detail.token);',
+    '    };',
+    '    element.addEventListener("vin-captcha-verified", onVerified);',
+    '    const script = document.createElement("script");',
+    '    script.src = WIDGET_URL + "?site_key=" + encodeURIComponent(SITE_KEY);',
+    '    script.async = true;',
+    '    document.head.appendChild(script);',
+    '    return () => { element.removeEventListener("vin-captcha-verified", onVerified); script.remove(); };',
+    '  }, [onToken]);',
+    '  return <vin-captcha ref={captchaRef as never} data-vin-captcha={SITE_KEY} />;',
+    '}',
+    '',
+    '// Render in a client component and send the token to /api/verify-captcha.'
+  ].join("\n");
+}
+function nextBackend(){
+  return [
+    '// app/api/verify-captcha/route.ts',
+    'import { NextResponse } from "next/server";',
+    '',
+    'export async function POST(request: Request) {',
+    '  const body = await request.json().catch(() => ({}));',
+    '  if (typeof body.token !== "string" || !body.token) {',
+    '    return NextResponse.json({ success: false, code: "missing_token" }, { status: 400 });',
+    '  }',
+    '  const siteKey = process.env.VIN_CAPTCHA_SITE_KEY;',
+    '  const secretKey = process.env.VIN_CAPTCHA_SECRET_KEY;',
+    '  if (!siteKey || !secretKey) {',
+    '    return NextResponse.json({ success: false, code: "captcha_not_configured" }, { status: 500 });',
+    '  }',
+    '  try {',
+    '    const upstream = await fetch('+jsString(VERIFY_URL)+', {',
+    '      method: "POST",',
+    '      headers: { "content-type": "application/json" },',
+    '      body: JSON.stringify({ site_key: siteKey, secret_key: secretKey, verification_token: body.token }),',
+    '      cache: "no-store"',
+    '    });',
+    '    const result = await upstream.json();',
+    '    if (!upstream.ok || result.success !== true) {',
+    '      return NextResponse.json({ success: false, code: result.code || "verification_failed" }, { status: 400 });',
+    '    }',
+    '    // Perform the protected action here, after successful verification.',
+    '    return NextResponse.json({ success: true });',
+    '  } catch {',
+    '    return NextResponse.json({ success: false, code: "verification_unavailable" }, { status: 502 });',
+    '  }',
+    '}'
+  ].join("\n");
+}
+function phpBackend(){
+  return [
+    '<?php',
+    'header("Content-Type: application/json; charset=utf-8");',
+    '$input = json_decode(file_get_contents("php://input"), true) ?? [];',
+    '$token = $input["token"] ?? "";',
+    'if (!is_string($token) || $token === "") {',
+    '  http_response_code(400);',
+    '  echo json_encode(["success" => false, "code" => "missing_token"]);',
+    '  exit;',
+    '}',
+    '$siteKey = getenv("VIN_CAPTCHA_SITE_KEY") ?: "";',
+    '$secretKey = getenv("VIN_CAPTCHA_SECRET_KEY") ?: "";',
+    'if ($siteKey === "" || $secretKey === "") {',
+    '  http_response_code(500);',
+    '  echo json_encode(["success" => false, "code" => "captcha_not_configured"]);',
+    '  exit;',
+    '}',
+    '$payload = json_encode(["site_key" => $siteKey, "secret_key" => $secretKey, "verification_token" => $token]);',
+    '$ch = curl_init('+jsString(VERIFY_URL)+');',
+    'curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => ["Content-Type: application/json"], CURLOPT_TIMEOUT => 8]);',
+    '$raw = curl_exec($ch);',
+    '$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);',
+    '$networkError = curl_errno($ch);',
+    'curl_close($ch);',
+    '$result = is_string($raw) ? json_decode($raw, true) : null;',
+    'if ($networkError || $status < 200 || $status >= 300 || ($result["success"] ?? false) !== true) {',
+    '  http_response_code(400);',
+    '  echo json_encode(["success" => false, "code" => $result["code"] ?? "verification_failed"]);',
+    '  exit;',
+    '}',
+    '// Perform your protected server-side action only after successful verification.',
+    'echo json_encode(["success" => true]);'
+  ].join("\n");
+}
+function makeSnippets(platform){
+  let config={description:"Static HTML widget, with an Express endpoint that verifies the token on your server.",frontendHeading:"Add the widget to your HTML page",frontendDescription:"The Site Key is public. The widget emits a token when the visitor completes a challenge.",backendHeading:"Add the Express verification endpoint",backendDescription:"Install Express, configure environment variables on your server, and call the verification API.",frontend:htmlFrontend("/api/verify-captcha"),backend:expressBackend()};
+  if(platform==="react-node"){
+    config={description:"Use the widget as a React component, then send its token to a Node.js/Express endpoint for server-side verification.",frontendHeading:"Create a React widget component",frontendDescription:"Render this component in your form and pass the event token to your form state. Never verify only in React.",backendHeading:"Verify with Node.js / Express",backendDescription:"Use the same Express endpoint for React and keep both environment variables on the server.",frontend:reactFrontend(),backend:expressBackend()};
+  } else if(platform==="nextjs"){
+    config={description:"Use a client component for the widget and a Next.js App Router route handler to verify the token securely on the server.",frontendHeading:"Create a Next.js client component",frontendDescription:"Save this as a client component such as components/VinCaptcha.tsx and send the token to your route handler.",backendHeading:"Create the API route handler",backendDescription:"Save as app/api/verify-captcha/route.ts and set VIN_CAPTCHA_SITE_KEY and VIN_CAPTCHA_SECRET_KEY in server environment variables.",frontend:nextFrontend(),backend:nextBackend()};
+  } else if(platform==="php"){
+    config={description:"Embed the widget in HTML and verify its token through a PHP endpoint using cURL. The secret stays in the PHP server environment.",frontendHeading:"Add the widget to your HTML page",frontendDescription:"Save this markup in your page and create verify-captcha.php with the PHP endpoint shown alongside.",backendHeading:"Create verify-captcha.php",backendDescription:"Enable PHP cURL and configure both environment variables in your PHP hosting environment.",frontend:htmlFrontend("/verify-captcha.php"),backend:phpBackend()};
+  }
+  return config;
+}
+function renderSnippets(){
+  const config=makeSnippets($("#platform").value);
+  $("#platformDescription").textContent=config.description;
+  $("#frontendHeading").textContent=config.frontendHeading;
+  $("#frontendDescription").textContent=config.frontendDescription;
+  $("#backendHeading").textContent=config.backendHeading;
+  $("#backendDescription").textContent=config.backendDescription;
+  $("#frontendCode").textContent=config.frontend;
+  $("#backendCode").textContent=config.backend;
+}
 async function init(){
   const user=await requireUser();if(!user)return;wireLogout();
   if(siteId){
@@ -17,66 +326,54 @@ async function init(){
     if(!r.data){siteId="";siteKey="YOUR_SITE_KEY";}
     else{siteKey=r.data.site_key;siteName=r.data.name;siteStatus=r.data.status;siteAllowedDomains=r.data.allowed_domains||[];$("#backSite").href="website.html?id="+encodeURIComponent(r.data.id);$("#integrationSiteName").textContent=r.data.name;}
   }else{siteKey=params.get("site_key")||"YOUR_SITE_KEY";}
-  render();
+  renderSnippets();
+  renderDemo();
 }
-function render(){
+function renderDemo(){
   const labLink=$("#botLabLink");if(labLink)labLink.href=siteId?"bot-lab.html?site_id="+encodeURIComponent(siteId):"bot-lab.html";
-  const embed='<script src="'+SUPABASE_URL+'/functions/v1/widget?site_key='+encodeURIComponent(siteKey)+'"><\/script>\n<vin-captcha data-vin-captcha="'+siteKey+'"></vin-captcha>';
-  const curl='curl -X POST "'+SUPABASE_URL+'/functions/v1/captcha-verify" \\\n  -H "content-type: application/json" \\\n  -d \'{"site_key":"'+siteKey+'","secret_key":"YOUR_SECRET_KEY","verification_token":"TOKEN_FROM_WIDGET"}\'';
-  $("#embed").textContent=embed;$("#curl").textContent=curl;
   const demo=$("#widgetDemo");if(!demo)return;demo.replaceChildren();
   const title=document.createElement("h3");title.textContent=siteId?"Live CAPTCHA test":"Widget preview";
   const description=document.createElement("p");description.className="desc";
   demo.append(title,description);
   if(!siteId){
-    description.textContent="Open this page from a website you own in Dashboard to load its real CAPTCHA. This preview stays visual-only until a site is selected.";
-    const preview=document.createElement("div");preview.className="integration-demo";preview.innerHTML="<strong>Human verification</strong><span>✓ BeeCaptcha widget area</span><small>Choose an owned website to run a real challenge.</small>";demo.appendChild(preview);return;
+    description.textContent="Open this page from a website you own in Dashboard to load its real CAPTCHA. Code examples use a placeholder Site Key until a website is selected.";
+    const preview=document.createElement("div");preview.className="integration-demo";preview.innerHTML="<strong>Human verification</strong><span>✓ BeeCaptcha widget area</span><small>Select an owned website to run a real challenge.</small>";demo.appendChild(preview);return;
   }
-  if(siteStatus!=="active"){
-    description.textContent="This site is disabled. Enable it in Website Settings before running the live test.";
-    return;
-  }
+  if(siteStatus!=="active"){description.textContent="This site is disabled. Enable it in Website Settings before running the live test.";return;}
   if(!allowedOnCurrentHost()){
     description.textContent="The live challenge is not loaded because this dashboard's domain is not in the site's allowed-domain list. Test the embed on one of the domains you registered; domain protection has not been bypassed.";
     const note=document.createElement("div");note.className="integration-warning";note.textContent="Allowed domains: "+(siteAllowedDomains.join(", ")||"none");demo.appendChild(note);return;
   }
-  description.textContent="This runs the real challenge and verifies the selected answer on the server using your signed-in dashboard session. Production websites must still validate tokens with captcha-verify and their server-only Secret Key.";
+  description.textContent="This runs a real challenge and tests verification in the dashboard. Production websites must still validate tokens with captcha-verify and their server-only Secret Key.";
   const widget=document.createElement("vin-captcha");widget.dataset.vinCaptcha=siteKey;widget.className="integration-live-widget";
   const status=document.createElement("p");status.className="integration-live-status";status.textContent="Loading the live widget…";
-  widget.addEventListener("vin-captcha-start",()=>{
-    status.textContent="Loading a fresh CAPTCHA challenge…";
-  });
-  widget.addEventListener("vin-captcha-challenge",()=>{
-    status.textContent="New challenge loaded. Complete it to test server-side verification.";
-  });
-  widget.addEventListener("vin-captcha-error",(event)=>{
-    status.textContent="CAPTCHA could not load: "+String(event.detail?.code||"unknown")+". Try refreshing the challenge.";
-  });
+  widget.addEventListener("vin-captcha-start",()=>{status.textContent="Loading a fresh CAPTCHA challenge…";});
+  widget.addEventListener("vin-captcha-challenge",()=>{status.textContent="New challenge loaded. Complete it to test server-side verification.";});
+  widget.addEventListener("vin-captcha-error",(event)=>{status.textContent="CAPTCHA could not load: "+String(event.detail?.code||"unknown")+". Try refreshing the challenge.";});
   widget.addEventListener("vin-captcha-verified",async(event)=>{
     status.textContent="Checking the answer on the BeeCaptcha server…";
     try{
-      const sessionResult=await db.auth.getSession();
-      const accessToken=sessionResult.data?.session?.access_token;
+      const sessionResult=await db.auth.getSession();const accessToken=sessionResult.data?.session?.access_token;
       if(sessionResult.error||!accessToken){status.textContent="Sign in again to run the server verification test.";return;}
-      const response=await fetch(SUPABASE_URL+"/functions/v1/captcha-test-verify",{
-        method:"POST",
-        headers:{"content-type":"application/json","Authorization":"Bearer "+accessToken,"apikey":SUPABASE_PUBLISHABLE_KEY},
-        body:JSON.stringify({site_id:siteId,verification_token:event.detail.token})
-      });
-      let result={};try{result=await response.json()}catch{}
-      if(response.ok&&result.success===true){
-        status.textContent="✓ Server verified the answer, challenge token, expiry, and single-use status. This dashboard test does not expose your Secret Key.";
-      }else{
-        status.textContent="✕ Server rejected the challenge: "+String(result.code||"verification_failed")+". Refresh this page to start a fresh challenge.";
-      }
-    }catch{
-      status.textContent="Could not reach the server verification test. Check the network and refresh the page.";
-    }
+      const response=await fetch(SUPABASE_URL+"/functions/v1/captcha-test-verify",{method:"POST",headers:{"content-type":"application/json","Authorization":"Bearer "+accessToken,"apikey":SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({site_id:siteId,verification_token:event.detail.token})});
+      let result={};try{result=await response.json();}catch{}
+      if(response.ok&&result.success===true){status.textContent="✓ Server verified the answer, challenge token, expiry, and single-use status. This dashboard test does not expose your Secret Key.";}
+      else{status.textContent="✕ Server rejected the challenge: "+String(result.code||"verification_failed")+". Refresh the page to start a fresh challenge.";}
+    }catch{status.textContent="Could not reach the server verification test. Check the network and refresh the page.";}
   });
   demo.append(widget,status);
-  const script=document.createElement("script");script.src=SUPABASE_URL+"/functions/v1/widget?site_key="+encodeURIComponent(siteKey);script.async=true;
-  script.onerror=()=>{status.textContent="Could not load the widget script. Check the function deployment and reload this page.";};
+  const script=document.createElement("script");script.src=WIDGET_URL+"?site_key="+encodeURIComponent(siteKey);script.async=true;
+  script.onerror=()=>{status.textContent="Could not load the widget script. Check the function deployment and reload the page.";};
   demo.appendChild(script);
 }
-async function cp(v,b){if(await copy(v)){const old=b.textContent;b.textContent="Copied";setTimeout(()=>b.textContent=old,1200)}}$("#copyEmbed").onclick=()=>cp($("#embed").textContent,$("#copyEmbed"));$("#copyCurl").onclick=()=>cp($("#curl").textContent,$("#copyCurl"));init();
-</script></body></html>
+async function copyBlock(sourceId,buttonId){
+  const button=$(buttonId);const original=button.textContent;
+  if(await copy($(sourceId).textContent)){button.textContent="Copied";setTimeout(()=>button.textContent=original,1200);}
+}
+$("#platform").addEventListener("change",renderSnippets);
+$("#copyFrontend").addEventListener("click",()=>copyBlock("#frontendCode","#copyFrontend"));
+$("#copyBackend").addEventListener("click",()=>copyBlock("#backendCode","#copyBackend"));
+init();
+</script>
+</body>
+</html>
