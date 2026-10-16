@@ -25,7 +25,7 @@ Content-Type: application/json
   "verification_token": "TOKEN_FROM_WIDGET"
 }</pre><p class="desc">Only your backend should send the secret key. A successful response returns <code>success: true</code>.</p></article>
 </div>
-<section class="workspace-card docs-note"><b>Supported CAPTCHA types</b><p class="desc">The dashboard currently supports Visual Select, Image Select and Math Challenge. Additional types can be registered through the CAPTCHA type catalog without changing the verification contract.</p><div class="hero-actions"><a class="cta" href="login.html">Create a website</a><a class="secondary" href="health.html">Run system checks</a></div></section>
+<section class="workspace-card docs-note"><b>Supported CAPTCHA types</b><p class="desc">The active challenge types are Image Select (select every matching image), Drag & Match (place the piece in the matching outline), and Connect the Dots (trace the connected route from A to B). Visual Select and Math Challenge are retired because they are too easy to automate. All challenges must still be verified on your server with the Secret Key.</p><div class="hero-actions"><a class="cta" href="login.html">Create a website</a><a class="secondary" href="health.html">Run system checks</a></div></section>
 </main>
 <footer>© 2026 BeeCaptcha · <a href="pricing.html">Pricing</a> · <a href="health.html">System status</a></footer>
 </body></html>
