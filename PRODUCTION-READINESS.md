@@ -12,6 +12,13 @@ Supabase project: `zjghuovefnbuliovttqa`
 - `captcha-security-test` v1: authenticated server-side fixture checks for correct answer, one-time use, invalid tokens, attempt limits, and expiry.
 - `site-rotate-secret` v3; `paddle-checkout` v3; `paddle-webhook` v4.
 
+## Verification evidence — 2026-10-16
+
+- The Postgres verification RPC regression suite passed for correct-answer acceptance once, replay rejection, wrong-token rejection without consuming a challenge, five-attempt lockout, and expiry rejection.
+- The temporary regression rows were removed; a follow-up query reported zero leftover rows.
+- Source compilation was verified by deployment: `captcha-challenge` v12 is ACTIVE, and the Vercel check for the latest `main` commit reports success.
+- Still not verified in this run: a complete live browser pass through the new COCO-SSD Bot Lab, source-image proxy behavior against every Wikimedia file, human completion rate, and statistical AI solve rate. These remain release-gate items.
+
 ## Controls now implemented
 
 - Challenge answer is stored as a hash; the browser receives tile IDs and image URLs, not the correct answer or labels.
