@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Integration Wizard — BeeCaptcha</title>
+<title>Tích hợp BeeCaptcha</title>
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -32,9 +32,9 @@
       <div class="workspace-title">
         <div>
           <span class="eyebrow">DEVELOPER · INTEGRATION</span>
-          <h1>Copy, paste, and show BeeCaptcha.</h1>
+          <h1>Chèn BeeCaptcha chỉ với một đoạn mã.</h1>
           <span id="integrationSiteName" class="captcha-badge" style="margin-top:8px;display:inline-flex">Website</span>
-          <p>The fastest option is one copy-and-paste snippet. Advanced platform-specific examples are available below.</p>
+          <p>Chọn cách dễ dùng để sao chép hoặc tải mã nhúng. Các công cụ nâng cao dành riêng cho lập trình viên.</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <a id="botLabLink" class="ghost" href="bot-lab.html">🤖 Test AI robot</a>
@@ -43,25 +43,25 @@
       </div>
 
       <section class="workspace-card" id="integrationModeSwitch" style="margin-bottom:16px">
-        <div class="integration-step"><b>Choose your path</b><span>Easy installation or developer mode</span></div>
+        <div class="integration-step"><b>Chọn cách sử dụng</b><span>Dành cho chủ website hoặc lập trình viên</span></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-          <button id="simpleModeButton" class="cta" type="button">Easy installation</button>
-          <button id="developerModeButton" class="ghost" type="button">Developer mode</button>
+          <button id="simpleModeButton" class="cta" type="button">Cài đặt dễ dàng</button>
+          <button id="developerModeButton" class="ghost" type="button">Chế độ lập trình viên</button>
         </div>
-        <p id="integrationModeDescription" class="desc" style="margin-bottom:0">For website owners: copy one small snippet and paste it into your page HTML. No framework choices needed.</p>
+        <p id="integrationModeDescription" class="desc" style="margin-bottom:0">Dành cho chủ website: sao chép một đoạn mã ngắn và dán vào HTML của trang. Không cần chọn framework.</p>
       </section>
 
       <section class="workspace-card" id="quickEmbed" style="margin-bottom:16px;border-color:#e7c85b">
-        <div class="integration-step"><b>1</b><span>Quick install — copy &amp; paste</span></div>
-        <h2 style="margin:5px 0 8px">Add BeeCaptcha to your website</h2>
-        <p class="desc">No plugin or ZIP needed. Copy this snippet and paste it into the HTML of the page where you want the CAPTCHA to appear, usually near the form you want to protect.</p>
+        <div class="integration-step"><b>1</b><span>Cài nhanh — sao chép và dán</span></div>
+        <h2 style="margin:5px 0 8px">Thêm BeeCaptcha vào website</h2>
+        <p class="desc">Không cần plugin hay tải ZIP. Sao chép đoạn mã bên dưới, rồi dán vào HTML của trang tại vị trí bạn muốn CAPTCHA xuất hiện, thường là gần biểu mẫu cần bảo vệ.</p>
         <pre id="quickEmbedCode" class="detail-code" style="white-space:pre;overflow:auto"><!-- Select a website to generate its embed code --></pre>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button id="copyQuickEmbed" class="cta" type="button">Copy embed code</button>
-          <button id="downloadQuickEmbed" class="ghost" type="button">Download code (.txt)</button>
-          <span id="quickEmbedStatus" class="desc" role="status" aria-live="polite" style="margin:0">The Site Key is public; never put your Secret Key in this snippet.</span>
+          <button id="copyQuickEmbed" class="cta" type="button">Sao chép mã nhúng</button>
+          <button id="downloadQuickEmbed" class="ghost" type="button">Tải mã xuống (.txt)</button>
+          <span id="quickEmbedStatus" class="desc" role="status" aria-live="polite" style="margin:0">Site Key có thể công khai. Tuyệt đối không đặt Secret Key vào đoạn mã này.</span>
         </div>
-        <div class="integration-warning" style="margin-top:12px">This snippet displays the CAPTCHA. To actually protect login, signup, checkout, or other sensitive actions, your website's backend must verify the token with BeeCaptcha before processing the action.</div>
+        <div class="integration-warning" style="margin-top:12px">Đoạn mã này hiển thị CAPTCHA. Để bảo vệ đăng nhập, đăng ký, thanh toán hoặc thao tác quan trọng, máy chủ website vẫn cần xác minh token trước khi xử lý.</div>
       </section>
 
       <section class="workspace-card" id="developerUrlPanel" style="margin-bottom:16px" hidden>
@@ -390,7 +390,7 @@ function setIntegrationMode(mode){
   $("#developerModeButton").className=simple?"ghost":"cta";
   $("#integrationModeDescription").textContent=simple
     ?"For website owners: copy one small snippet and paste it into your page HTML. No framework choices needed."
-    :"For developers: domain setup, downloadable starter packages, framework examples, and server-side verification.";
+    :"Dành cho lập trình viên: cấu hình domain, tải bộ mã mẫu, ví dụ theo framework và xác minh ở máy chủ.";
 }
 
 async function copyQuickEmbed(){
@@ -531,7 +531,7 @@ function makeNodeServer(){
 function makeHtmlApp(){
   return [
     '<!doctype html>',
-    '<html lang="en">',
+    '<html lang="vi">',
     '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha protected form</title>',
     '<script src="' + WIDGET_URL + '?site_key=' + encodeURIComponent(siteKey) + '" async defer>' + closeScript,
     '<style>body{font:16px system-ui,sans-serif;max-width:640px;margin:48px auto;padding:0 18px}form{display:grid;gap:14px}input,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #ccc}button{cursor:pointer;background:#f6b900;border:0;font-weight:700}vin-captcha{display:block}#message{min-height:24px}</style></head>',
@@ -664,7 +664,7 @@ function makeNextRoute(){
 }
 function makePhpPage(){
   return [
-    '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha protected form</title>',
+    '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha protected form</title>',
     '<script src="' + WIDGET_URL + '?site_key=' + encodeURIComponent(siteKey) + '" async defer>' + closeScript,
     '</head><body><h1>Protected form</h1><form id="protected-form"><label>Email <input type="email" required></label><vin-captcha data-vin-captcha="' + siteKey + '"></vin-captcha><button>Verify and continue</button><p id="message" role="status"></p></form>',
     '<script>',
@@ -785,7 +785,7 @@ async function generatePackage(){
     zip.file("server.js",makeNodeServer());
     zip.file("package.json",JSON.stringify({name:"beecaptcha-integration",private:true,type:"module",scripts:{start:"node server.js"},dependencies:{dotenv:"^16.4.5",express:"^4.21.2"}},null,2));
   }else if(platform==="react-node"){
-    zip.file("index.html",'<!doctype html>\n<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha React sample</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>');
+    zip.file("index.html",'<!doctype html>\n<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha React sample</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>');
     zip.file("src/main.jsx",'import React from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App.jsx";\ncreateRoot(document.getElementById("root")).render(<App />);\n');
     zip.file("src/App.jsx",makeReactApp());
     zip.file("server.js",makeNodeServer().replace('app.use(express.static("public"));','app.use(express.static("dist"));'));
