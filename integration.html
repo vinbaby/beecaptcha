@@ -42,6 +42,15 @@
         </div>
       </div>
 
+      <section class="workspace-card" id="integrationModeSwitch" style="margin-bottom:16px">
+        <div class="integration-step"><b>Choose your path</b><span>Easy installation or developer mode</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button id="simpleModeButton" class="cta" type="button">Easy installation</button>
+          <button id="developerModeButton" class="ghost" type="button">Developer mode</button>
+        </div>
+        <p id="integrationModeDescription" class="desc" style="margin-bottom:0">For website owners: copy one small snippet and paste it into your page HTML. No framework choices needed.</p>
+      </section>
+
       <section class="workspace-card" id="quickEmbed" style="margin-bottom:16px;border-color:#e7c85b">
         <div class="integration-step"><b>1</b><span>Quick install — copy &amp; paste</span></div>
         <h2 style="margin:5px 0 8px">Add BeeCaptcha to your website</h2>
@@ -49,12 +58,13 @@
         <pre id="quickEmbedCode" class="detail-code" style="white-space:pre;overflow:auto"><!-- Select a website to generate its embed code --></pre>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <button id="copyQuickEmbed" class="cta" type="button">Copy embed code</button>
+          <button id="downloadQuickEmbed" class="ghost" type="button">Download code (.txt)</button>
           <span id="quickEmbedStatus" class="desc" role="status" aria-live="polite" style="margin:0">The Site Key is public; never put your Secret Key in this snippet.</span>
         </div>
         <div class="integration-warning" style="margin-top:12px">This snippet displays the CAPTCHA. To actually protect login, signup, checkout, or other sensitive actions, your website's backend must verify the token with BeeCaptcha before processing the action.</div>
       </section>
 
-      <section class="workspace-card" style="margin-bottom:16px">
+      <section class="workspace-card" id="developerUrlPanel" style="margin-bottom:16px" hidden>
         <label for="siteUrl" style="display:block;margin:0 0 7px">1. Paste your website URL</label>
         <input id="siteUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com" style="max-width:520px;margin-bottom:5px">
         <p id="siteUrlStatus" class="desc" role="status" style="margin-top:0">Use your website URL. If its hostname is not registered yet, add it to this BeeCaptcha site first.</p>
@@ -70,14 +80,14 @@
         <p id="platformDescription" class="desc" style="margin-bottom:0">Static HTML widget, with an Express endpoint that verifies the token on your server.</p>
       </section>
 
-      <section class="workspace-card" id="packageBuilder" style="margin-bottom:16px">
+      <section class="workspace-card" id="packageBuilder" style="margin-bottom:16px" hidden>
         <div class="integration-step"><b>Advanced</b><span>Generate a framework starter ZIP (optional)</span></div>
         <p class="desc">Only use this if you want a larger starter project. For a basic CAPTCHA embed, the copy-and-paste snippet above is enough to display the widget. Your Secret Key is never included.</p>
         <button id="generatePackage" class="cta" type="button">Generate &amp; download ZIP</button>
         <p id="packageStatus" class="desc" role="status" aria-live="polite" style="margin-bottom:0">Choose a registered website URL and platform, then generate your package.</p>
       </section>
 
-      <section class="integration-card-grid">
+      <section class="integration-card-grid" id="developerWorkspace" hidden>
         <article class="workspace-card">
           <div class="integration-step"><b>2</b><span id="frontendHeading">Add the widget to your frontend</span></div>
           <p id="frontendDescription" class="desc">The Site Key is public. The widget emits a token when the visitor completes a challenge.</p>
@@ -350,6 +360,39 @@ function quickEmbedSnippet(){
   if(!siteKey||siteKey==="YOUR_SITE_KEY")return "<!-- Open Integration from one of your websites to generate a Site Key snippet -->";
   return '<script src="'+WIDGET_URL+'?site_key='+encodeURIComponent(siteKey)+'" async defer><\/script>\n<vin-captcha data-vin-captcha="'+siteKey+'"></vin-captcha>';
 }
+
+function downloadQuickEmbed(){
+  const value=quickEmbedSnippet();
+  if(!siteId||!siteKey||siteKey==="YOUR_SITE_KEY"){
+    $("#quickEmbedStatus").textContent="Open this page from one of your websites in Dashboard first.";
+    $("#quickEmbedStatus").style.color="#a53232";return;
+  }
+  const blob=new Blob([
+    "<!-- BeeCaptcha embed code for "+siteName.replace(/--/g,"-")+" -->\n",
+    value,
+    "\n\n<!-- Paste these lines into the HTML of the page where you want the CAPTCHA to appear. -->\n"
+  ],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  const slug=(siteName||"website").toLowerCase().replace(/[^a-z0-9-]+/g,"-").replace(/^-|-$/g,"")||"website";
+  link.href=url;link.download="beecaptcha-"+slug+"-embed-code.txt";
+  document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  $("#quickEmbedStatus").textContent="Code file downloaded. Open it, copy the two lines and paste them into your website's HTML.";
+  $("#quickEmbedStatus").style.color="";
+}
+function setIntegrationMode(mode){
+  const simple=mode!=="developer";
+  $("#quickEmbed").hidden=!simple;
+  $("#developerUrlPanel").hidden=simple;
+  $("#packageBuilder").hidden=simple;
+  $("#developerWorkspace").hidden=simple;
+  $("#simpleModeButton").className=simple?"cta":"ghost";
+  $("#developerModeButton").className=simple?"ghost":"cta";
+  $("#integrationModeDescription").textContent=simple
+    ?"For website owners: copy one small snippet and paste it into your page HTML. No framework choices needed."
+    :"For developers: domain setup, downloadable starter packages, framework examples, and server-side verification.";
+}
+
 async function copyQuickEmbed(){
   const button=$("#copyQuickEmbed"), status=$("#quickEmbedStatus");
   if(!button||!status)return;
@@ -780,6 +823,10 @@ async function init(){
   }else{siteKey=params.get("site_key")||"YOUR_SITE_KEY";}
   $("#quickEmbedCode").textContent=quickEmbedSnippet();
   $("#copyQuickEmbed").addEventListener("click",copyQuickEmbed);
+  $("#downloadQuickEmbed").addEventListener("click",downloadQuickEmbed);
+  $("#simpleModeButton").addEventListener("click",()=>setIntegrationMode("simple"));
+  $("#developerModeButton").addEventListener("click",()=>setIntegrationMode("developer"));
+  setIntegrationMode("simple");
   renderSnippets();
   const firstDomain=siteAllowedDomains.find(value=>!String(value||"").trim().startsWith("*."));
   if(firstDomain)$("#siteUrl").value="https://"+normalizeDomain(firstDomain);
