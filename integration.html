@@ -57,7 +57,9 @@
       <section class="workspace-card" style="margin-bottom:16px">
         <label for="siteUrl" style="display:block;margin:0 0 7px">1. Paste your website URL</label>
         <input id="siteUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com" style="max-width:520px;margin-bottom:5px">
-        <p id="siteUrlStatus" class="desc" role="status" style="margin-top:0">Use a domain already registered in Website Settings.</p>
+        <p id="siteUrlStatus" class="desc" role="status" style="margin-top:0">Use your website URL. If its hostname is not registered yet, add it to this BeeCaptcha site first.</p>
+        <button id="registerDomain" class="ghost" type="button" hidden>Add this domain to Allowed Domains</button>
+        <p class="desc" style="margin-top:8px">Important: entering a URL does not install or run code on that website. This step authorizes the hostname and prepares the code package; the embed snippet must still be pasted into the page HTML or deployed through your own hosting.</p>
         <label for="platform" style="display:block;margin:0 0 7px">2. Choose your platform</label>
         <select id="platform" style="max-width:520px">
           <option value="html-node">HTML / JavaScript + Node.js (Express)</option>
@@ -106,7 +108,7 @@
 <script>
 const {db,$,requireUser,wireLogout,copy,SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,query}=Bee;
 const params=query();
-let siteKey="",siteId=params.get("site_id"),siteName="Website",siteStatus="",siteAllowedDomains=[];
+let siteKey="",siteId=params.get("site_id"),siteName="Website",siteStatus="",siteAllowedDomains=[],currentUser=null;
 const VERIFY_URL=SUPABASE_URL+"/functions/v1/captcha-verify";
 const WIDGET_URL=SUPABASE_URL+"/functions/v1/widget";
 const closeScript="</scr"+"ipt>";
@@ -367,6 +369,63 @@ async function copyQuickEmbed(){
   }
 }
 
+function parseTargetUrl(){
+  const raw=($("#siteUrl")?.value||"").trim();
+  if(!raw)return {error:"Paste a complete URL such as https://example.com."};
+  try{
+    const parsed=new URL(raw);
+    if(!["https:","http:"].includes(parsed.protocol)||!parsed.hostname||parsed.username||parsed.password)
+      return {error:"Use a valid HTTP or HTTPS URL without embedded credentials."};
+    return {parsed};
+  }catch{return {error:"Paste a complete URL such as https://example.com."};}
+}
+function updateDomainInputStatus(){
+  const result=parseTargetUrl();
+  const status=$("#siteUrlStatus"),button=$("#registerDomain");
+  if(!status||!button)return;
+  if(result.error){
+    status.textContent=result.error;status.style.color="#a53232";button.hidden=true;return;
+  }
+  const hostname=result.parsed.hostname.toLowerCase();
+  if(isAllowedWebsiteHost(hostname)){
+    status.textContent="✓ "+hostname+" is already allowed for this BeeCaptcha site.";
+    status.style.color="";button.hidden=true;
+  }else{
+    status.textContent=hostname+" is not allowed yet. Add it before using this Site Key on that domain.";
+    status.style.color="#a53232";button.hidden=false;
+  }
+}
+async function registerTargetDomain(){
+  if(!siteId||!currentUser){setPackageStatus("Open Integration from a website you own while signed in.",true);return;}
+  const result=parseTargetUrl();
+  if(result.error){$("#siteUrlStatus").textContent=result.error;$("#siteUrlStatus").style.color="#a53232";return;}
+  const host=result.parsed.hostname.toLowerCase();
+  if(isAllowedWebsiteHost(host)){updateDomainInputStatus();return;}
+  if(!confirm("Add "+host+" to this BeeCaptcha site's Allowed Domains? Only do this for a domain you own or manage."))return;
+  const domains=[...siteAllowedDomains];
+  if(!domains.some(value=>normalizeDomain(value).replace(/:\d+$/,"").toLowerCase()===host)){
+    domains.push(host);
+  }
+  const button=$("#registerDomain"),old=button.textContent;
+  button.disabled=true;button.textContent="Adding domain…";
+  try{
+    const updated=await db.from("sites").update({allowed_domains:domains})
+      .eq("id",siteId).eq("owner_id",currentUser.id)
+      .select("allowed_domains").maybeSingle();
+    if(updated.error||!updated.data){
+      $("#siteUrlStatus").textContent="Could not save the domain. Open Website Settings and add it there.";
+      $("#siteUrlStatus").style.color="#a53232";
+      setPackageStatus("Domain not saved. Check your account permission and Website Settings.",true);
+      return;
+    }
+    siteAllowedDomains=updated.data.allowed_domains||domains;
+    updateDomainInputStatus();
+    setPackageStatus("Domain "+host+" was added. Now copy the embed code and paste it into that website, or generate a starter ZIP.");
+  }catch{
+    $("#siteUrlStatus").textContent="Could not save the domain. Try Website Settings.";
+    $("#siteUrlStatus").style.color="#a53232";
+  }finally{button.disabled=false;button.textContent=old;}
+}
 function isAllowedWebsiteHost(host){
   const normalized=String(host||"").toLowerCase().replace(/\.$/,"");
   return siteAllowedDomains.some(value=>{
@@ -600,6 +659,28 @@ function makePhpBackend(){
     'echo json_encode(["success"=>true]);'
   ].join("\n");
 }
+
+async function ensureZipLibrary(){
+  if(window.JSZip)return window.JSZip;
+  const sources=[
+    "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+    "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
+  ];
+  for(const src of sources){
+    try{
+      await new Promise((resolve,reject)=>{
+        const script=document.createElement("script");
+        script.src=src;script.async=true;
+        script.onload=()=>resolve(true);
+        script.onerror=()=>{script.remove();reject(new Error("zip_cdn_failed"));};
+        document.head.appendChild(script);
+      });
+      if(window.JSZip)return window.JSZip;
+    }catch{}
+  }
+  return null;
+}
+
 function packageReadme(url,platform){
   const labels={"html-node":"HTML + Node.js / Express","react-node":"React + Vite + Node.js / Express","nextjs":"Next.js App Router","php":"HTML + PHP"};
   return [
@@ -634,26 +715,24 @@ function packageReadme(url,platform){
   ].join("\n");
 }
 async function generatePackage(){
-  const input=$("#siteUrl");
   const status=$("#siteUrlStatus");
-  const raw=(input?.value||"").trim();
+  const urlResult=parseTargetUrl();
+  const raw=(($("#siteUrl")?.value)||"").trim();
   if(!siteId||!siteKey||siteKey==="YOUR_SITE_KEY"){
     status.textContent="Open Integration from a website you own in the BeeCaptcha dashboard first.";
     status.style.color="#a53232";setPackageStatus("A registered website is required before a package can be generated.",true);return;
   }
-  let parsed;
-  try{parsed=new URL(raw);}catch{status.textContent="Enter a complete URL, for example https://example.com";status.style.color="#a53232";setPackageStatus("Please enter a valid website URL.",true);return;}
-  if(!["https:","http:"].includes(parsed.protocol)||!parsed.hostname||parsed.username||parsed.password){
-    status.textContent="Use a valid HTTP or HTTPS website URL without embedded credentials.";status.style.color="#a53232";setPackageStatus("Invalid website URL.",true);return;
-  }
+  if(urlResult.error){status.textContent=urlResult.error;status.style.color="#a53232";setPackageStatus("Please enter a valid website URL.",true);return;}
+  const parsed=urlResult.parsed;
   if(!isAllowedWebsiteHost(parsed.hostname)){
-    status.textContent="This hostname is not in the site's Allowed Domains list. Add it in Website Settings first.";status.style.color="#a53232";
-    setPackageStatus("Package not generated: " + parsed.hostname + " is not an allowed domain for this BeeCaptcha website.",true);return;
+    updateDomainInputStatus();
+    setPackageStatus("Package not generated yet: add "+parsed.hostname+" to Allowed Domains first, then try again.",true);return;
   }
   status.style.color="";status.textContent="Domain confirmed against this site's Allowed Domains list.";
-  if(typeof JSZip==="undefined"){setPackageStatus("The ZIP generator did not load. Refresh this page and try again.",true);return;}
+  const Zip=await ensureZipLibrary();
+  if(!Zip){setPackageStatus("The ZIP library could not load from either CDN. Check your connection or browser content blocker, then refresh.",true);return;}
   const platform=$("#platform").value;
-  const zip=new JSZip();
+  const zip=new Zip();
   const envExample="VIN_CAPTCHA_SITE_KEY="+siteKey+"\nVIN_CAPTCHA_SECRET_KEY=replace_with_your_server_only_secret\n";
   zip.file("README.md",packageReadme(parsed.origin,platform));
   zip.file("vin-captcha-config.json",JSON.stringify({product:"BeeCaptcha",website_name:siteName,website_url:parsed.origin,site_key:siteKey,platform},null,2));
@@ -693,7 +772,7 @@ async function generatePackage(){
 }
 
 async function init(){
-  const user=await requireUser();if(!user)return;wireLogout();
+  const user=await requireUser();if(!user)return;currentUser=user;wireLogout();
   if(siteId){
     const r=await db.from("sites").select("id,name,site_key,status,allowed_domains").eq("id",siteId).eq("owner_id",user.id).maybeSingle();
     if(!r.data){siteId="";siteKey="YOUR_SITE_KEY";}
@@ -704,8 +783,10 @@ async function init(){
   renderSnippets();
   const firstDomain=siteAllowedDomains.find(value=>!String(value||"").trim().startsWith("*."));
   if(firstDomain)$("#siteUrl").value="https://"+normalizeDomain(firstDomain);
-  $("#siteUrl").addEventListener("input",()=>{const value=$("#siteUrl").value.trim();if(!value){$("#siteUrlStatus").textContent="Use a domain already registered in Website Settings.";return;}try{const parsed=new URL(value);const ok=isAllowedWebsiteHost(parsed.hostname);$("#siteUrlStatus").textContent=ok?"Domain confirmed against this site’s Allowed Domains list.":"This hostname is not allowed yet. Add it in Website Settings first.";$("#siteUrlStatus").style.color=ok?"":"#a53232";}catch{$("#siteUrlStatus").textContent="Enter a complete URL such as https://example.com";$("#siteUrlStatus").style.color="#a53232";}});
+  $("#siteUrl").addEventListener("input",updateDomainInputStatus);
+  $("#registerDomain").addEventListener("click",registerTargetDomain);
   $("#generatePackage").addEventListener("click",generatePackage);
+  updateDomainInputStatus();
   renderDemo();
 }
 function renderDemo(){
