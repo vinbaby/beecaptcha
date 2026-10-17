@@ -785,7 +785,7 @@ async function generatePackage(){
     zip.file("server.js",makeNodeServer());
     zip.file("package.json",JSON.stringify({name:"beecaptcha-integration",private:true,type:"module",scripts:{start:"node server.js"},dependencies:{dotenv:"^16.4.5",express:"^4.21.2"}},null,2));
   }else if(platform==="react-node"){
-    zip.file("index.html",'<!doctype html>\n<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha React sample</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>');
+    zip.file("index.html",'<!doctype html>\n<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BeeCaptcha React sample</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"><\/script></body></html>');
     zip.file("src/main.jsx",'import React from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App.jsx";\ncreateRoot(document.getElementById("root")).render(<App />);\n');
     zip.file("src/App.jsx",makeReactApp());
     zip.file("server.js",makeNodeServer().replace('app.use(express.static("public"));','app.use(express.static("dist"));'));
